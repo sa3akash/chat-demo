@@ -15,7 +15,8 @@
     "drizzle-typebox": "^0.3.3",
     "elysia": "latest",
     "ioredis": "^6.0.0",
-    "pino": "^10.3.1"
+    "pino": "^10.3.1",
+    "postgres": "^3.4.9"
   },
   "devDependencies": {
     "bun-types": "latest",

@@ -1,14 +1,15 @@
 import { t, Static } from "elysia";
 
+
+
 // --- Base Schemas ---
 
 export const chatPayload = t.Object({
-  id: t.String(),
+  id: t.String(), // UUIDv7 or ULID (time-sortable)
   conversationId: t.String(),
   senderId: t.String(),
-  senderName: t.Optional(t.String()),
   receiverId: t.Optional(t.String()), // Set for 1-on-1
-  groupId: t.Optional(t.String()), // Set for Group
+  groupId: t.Optional(t.String()),    // Set for Group
   text: t.Optional(t.String()),
   mediaUrl: t.Optional(t.String()),
   mediaType: t.Optional(
@@ -17,16 +18,16 @@ export const chatPayload = t.Object({
       t.Literal("video"),
       t.Literal("audio"),
       t.Literal("file"),
-    ]),
+    ])
   ),
   replyToId: t.Optional(t.String()),
   createdAt: t.Number(),
 });
 
 export const statusReceiptPayload = t.Object({
-  messageId: t.Optional(t.String()),
+  messageId: t.String(),
   conversationId: t.String(),
-  senderId: t.String(), // User who read/received
+  senderId: t.String(), // Target recipient receiving the state update
   status: t.Union([t.Literal("delivered"), t.Literal("read")]),
   timestamp: t.Number(),
 });
@@ -34,8 +35,7 @@ export const statusReceiptPayload = t.Object({
 export const typingPayload = t.Object({
   conversationId: t.String(),
   senderId: t.String(),
-  senderName: t.Optional(t.String()),
-  targetId: t.String(), // receiverId or conversationId
+  targetId: t.String(), // receiverId or groupId
   isTyping: t.Boolean(),
 });
 
@@ -50,12 +50,10 @@ export const reactionPayload = t.Object({
 
 export const presencePayload = t.Object({
   userId: t.String(),
-  username: t.Optional(t.String()),
   status: t.Union([
     t.Literal("online"),
     t.Literal("offline"),
     t.Literal("away"),
-    t.Literal("dnd"),
   ]),
   lastSeen: t.Optional(t.Number()),
 });
@@ -72,18 +70,6 @@ export const groupActionPayload = t.Object({
   memberIds: t.Array(t.String()),
 });
 
-export const notificationPayload = t.Object({
-  id: t.String(),
-  userId: t.String(),
-  actorId: t.Optional(t.String()),
-  actorName: t.Optional(t.String()),
-  type: t.String(),
-  title: t.String(),
-  body: t.String(),
-  link: t.Optional(t.String()),
-  createdAt: t.Number(),
-});
-
 // --- Discriminated Union ---
 
 export const messageSchema = t.Union([
@@ -93,7 +79,6 @@ export const messageSchema = t.Union([
   t.Object({ type: t.Literal("reaction"), payload: reactionPayload }),
   t.Object({ type: t.Literal("presence"), payload: presencePayload }),
   t.Object({ type: t.Literal("group_action"), payload: groupActionPayload }),
-  t.Object({ type: t.Literal("notification"), payload: notificationPayload }),
 ]);
 
 export type MessageSchema = Static<typeof messageSchema>;
