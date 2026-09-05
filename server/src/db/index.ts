@@ -23,3 +23,20 @@ pool.on("error", (error) => {
 });
 
 
+export async function dbConnect() {
+  try {
+    await pool.query("SELECT 1");
+    logger.info("Database connected successfully");
+  } catch (error) {
+    logger.error(error, "Failed to connect to database");
+  }
+}
+
+export async function dbDisconnect() {
+  try {
+    await pool.end();
+    logger.info("Database disconnected successfully");
+  } catch (error) {
+    logger.error(error, "Failed to disconnect from database");
+  }
+}
