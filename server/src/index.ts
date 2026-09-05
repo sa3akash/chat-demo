@@ -1,19 +1,11 @@
-import { Elysia } from "elysia";
-import { AppError, errorMiddleware } from "./middlewares/error";
-import { websocket } from "./modules/websocket/gatway";
+import cluster from 'node:cluster'
+import os from 'node:os'
+import process from 'node:process'
 
-const app = new Elysia()
-  .error({
-    AppError,
-  })
-
-  .get("/", () => "Hello Elysia")
-
-
-  .use(websocket)
-  .use(errorMiddleware)
-  .listen(4400);
-
-console.log(
-  `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
-);
+if (cluster.isPrimary) {
+  	for (let i = 0; i < os.availableParallelism(); i++)
+    	cluster.fork()
+} else {
+  	await import('./server')
+  	console.log(`Worker ${process.pid} started`)
+}
