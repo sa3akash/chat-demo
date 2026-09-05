@@ -34,7 +34,7 @@ export const statusReceiptPayload = t.Object({
 
 export const typingPayload = t.Object({
   conversationId: t.String(),
-  userId: t.String(),
+  senderId: t.String(),
   targetId: t.String(), // receiverId or groupId
   isTyping: t.Boolean(),
 });

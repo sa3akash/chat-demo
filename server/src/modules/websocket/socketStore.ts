@@ -22,7 +22,6 @@ export async function addUser(userId: string, ws: WS) {
     sockets.add(ws);
   } else {
     userSockets.set(userId, new Set([ws]));
-
     // Track globally in Redis
     await pub.sadd("presence:online", userId);
 
@@ -71,12 +70,12 @@ export async function disconnectUser(userId: string, ws: WS) {
 /**
  * Direct delivery to local sockets attached to this instance node
  */
-export function broadcastToLocalUser(userId: string, message: MessageSchema) {
+export function broadcastToLocalUser(userId: string, message: MessageSchema,excludeSocketId?: string) {
   const sockets = userSockets.get(userId);
   if (sockets) {
     const payloadStr = JSON.stringify(message);
     sockets.forEach((socket) => {
-      if (socket.readyState === 1) {
+      if (socket.readyState === 1 && socket.id !== excludeSocketId) {
         socket.send(payloadStr);
       }
     });
@@ -108,15 +107,16 @@ sub.on("message", (channel, payloadStr) => {
   if (channel !== "chat") return;
 
   try {
-    const { targetUserId, message } = JSON.parse(payloadStr) as {
+    const { targetUserId, message,excludeSocketId } = JSON.parse(payloadStr) as {
       targetUserId: string;
       message: MessageSchema;
+      excludeSocketId?: string;
     };
 
     if (targetUserId === "*") {
       broadcastToAllLocal(message);
     } else {
-      broadcastToLocalUser(targetUserId, message);
+      broadcastToLocalUser(targetUserId, message, excludeSocketId);
     }
   } catch (err) {
     console.error("Failed parsing pub/sub message payload:", err);

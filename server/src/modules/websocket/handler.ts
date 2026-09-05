@@ -4,15 +4,22 @@ import { pub, broadcastToLocalUser, userSockets, WS } from "./socketStore";
 /**
  * Primary Message Switch Router
  */
-export async function messageHandler(msg: MessageSchema) {
+export async function messageHandler(
+  msg: MessageSchema,
+  originSocketId: string,
+) {
   switch (msg.type) {
     case "chat": {
-      const { receiverId, groupId } = msg.payload;
+      const { receiverId, groupId, senderId } = msg.payload;
       if (receiverId) {
         await routeToUser(receiverId, msg);
       } else if (groupId) {
         await routeToGroup(groupId, msg);
       }
+
+      // 2. Multi-tab sync: Deliver to sender's OTHER tabs (excluding active ws.id)
+      await routeToUser(senderId, msg, originSocketId);
+
       break;
     }
 
@@ -50,10 +57,14 @@ export async function messageHandler(msg: MessageSchema) {
 /**
  * Route message across Redis or fallback to offline store
  */
-export async function routeToUser(targetUserId: string, message: MessageSchema) {
+export async function routeToUser(
+  targetUserId: string,
+  message: MessageSchema,
+  excludeSocketId?: string,
+) {
   // If target user is online locally on this server, skip Redis roundtrip
   if (userSockets.has(targetUserId)) {
-    broadcastToLocalUser(targetUserId, message);
+    broadcastToLocalUser(targetUserId, message, excludeSocketId);
     return;
   }
 
@@ -64,7 +75,7 @@ export async function routeToUser(targetUserId: string, message: MessageSchema) 
     // Target is connected to another cluster node: dispatch via Redis channel
     await pub.publish(
       "chat",
-      JSON.stringify({ targetUserId, message })
+      JSON.stringify({ targetUserId, message, excludeSocketId }),
     );
   } else {
     // User is completely offline: store in Redis offline queue
