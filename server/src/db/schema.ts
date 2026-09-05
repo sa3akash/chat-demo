@@ -7,8 +7,8 @@ import {
   jsonb,
   pgEnum,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
+import { relations } from "drizzle-orm/_relations";
 
 const common = {
   id: varchar("id")
@@ -175,3 +175,15 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+export type TUser = typeof users.$inferSelect;
+export type TConversation = typeof conversations.$inferSelect;
+export type TConversationMember = typeof conversationMembers.$inferSelect;
+export type TMessage = typeof messages.$inferSelect;
+export type TNotification = typeof notifications.$inferSelect;
+
+export type TInsertUser = typeof users.$inferInsert;
+export type TInsertConversation = typeof conversations.$inferInsert;
+export type TInsertConversationMember = typeof conversationMembers.$inferInsert;
+export type TInsertMessage = typeof messages.$inferInsert;
+export type TInsertNotification = typeof notifications.$inferInsert;

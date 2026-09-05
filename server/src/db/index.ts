@@ -1,15 +1,25 @@
-import postgres from "postgres";
-import { drizzle } from "drizzle-orm/postgres-js";
-import * as schema from "./schema";
+import { logger } from "@/lib/logger";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 
 const connectionString =
   process.env.DATABASE_URL || "postgresql://admin:admin@localhost:5432/testing";
 
-export const client = postgres(connectionString, {
-  max: 10,
-  idle_timeout: 20,
-  connect_timeout: 10,
+const pool = new Pool({
+  connectionString: connectionString,
 });
 
-export const db = drizzle(client, { schema });
-export * from "./schema";
+export const db = drizzle({
+  client: pool,
+});
+
+
+pool.on("connect", () => {
+  logger.info("Connected to database");
+});
+
+pool.on("error", (error) => {
+  logger.error(error, "Database connection error");
+});
+
+
