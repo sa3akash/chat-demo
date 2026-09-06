@@ -30,7 +30,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [isOnline, setIsOnline] = useState<boolean>(false);
 
   const { user } = useAuth();
-  const token = user?.token;
+  const token = user?.accessToken;
 
   useEffect(() => {
     if (!token) return;
@@ -39,10 +39,12 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
     ws.onopen = () => {
       setIsOnline(true);
+      console.log("WebSocket connected");
     };
 
     ws.onclose = () => {
       setIsOnline(false);
+      console.log("WebSocket disconnected");
     };
 
     ws.onerror = (err) => {

@@ -3,17 +3,22 @@ import { messageSchema } from "./types";
 import { addUser, disconnectUser } from "./socketStore";
 import { flushOfflineQueue, messageHandler } from "./handler";
 import { logger } from "@/lib/logger";
+import { AuthPayload, tokenEngine } from "@/middlewares/auth";
 
 function verifyToken(token: string) {
+  const result = tokenEngine.decrypt<AuthPayload>(token);
+  if (!result.success) {
+    return null;
+  }
   return {
-    userId: token,
+    userId: result.data.id,
   };
 }
 
 const auth = new Elysia({ name: "ws-auth" }).derive(
   { as: "scoped" },
   async ({ query, status }) => {
-    const userId = await verifyToken(query.token);
+    const userId = verifyToken(query.token);
     if (!userId) return status(401);
     return { userId: userId.userId };
   },

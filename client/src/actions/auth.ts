@@ -98,3 +98,46 @@ export const signIn = async (usernameOrEmail: string, password: string) => {
     error: null,
   };
 };
+
+export const getUser = async () => {
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get("accessToken")?.value;
+
+  if (!accessToken) {
+    return {
+      error: "No access token found",
+      success: false,
+    };
+  }
+
+  const response = await fetch(`${BASE_URL}/me`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  if (!response.ok) {
+    return {
+      error: "Failed to get user",
+      success: false,
+    };
+  }
+  if (!response.headers.get("content-type")?.includes("application/json")) {
+    const message = await response.text();
+    return {
+      error: message,
+      success: false,
+    };
+  }
+
+  const {user} = await response.json();
+  return {
+    data: {
+      username: user.username,
+      accessToken,
+    },
+    success: true,
+    error: null,
+  };
+};

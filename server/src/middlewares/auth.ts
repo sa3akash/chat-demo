@@ -10,7 +10,7 @@ export interface AuthPayload {
 
 export const tokenEngine = new SecureTokenService(process.env.TOKEN_SECRET!);
 
-function verifyToken(token: string) {
+export function verifyToken(token: string) {
   const result = tokenEngine.decrypt<AuthPayload>(token);
 
   if (!result.success) {
