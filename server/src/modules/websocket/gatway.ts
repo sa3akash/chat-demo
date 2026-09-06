@@ -18,9 +18,9 @@ function verifyToken(token: string) {
 const auth = new Elysia({ name: "ws-auth" }).derive(
   { as: "scoped" },
   async ({ query, status }) => {
-    const userId = verifyToken(query.token);
-    if (!userId) return status(401);
-    return { userId: userId.userId };
+    const data = verifyToken(query.token);
+    if (!data) return status(401);
+    return { userId: data.userId };
   },
 );
 

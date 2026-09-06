@@ -32,6 +32,15 @@ export abstract class Message {
       })
       .returning();
 
+    await db
+      .update(conversations)
+      .set({
+        lastMessageAt: message[0].createdAt,
+        lastMessageId: message[0].id,
+      })
+      .where(eq(conversations.id, conversationId))
+      .execute();
+
     return message[0];
   }
 

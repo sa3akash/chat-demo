@@ -49,6 +49,10 @@ const app = new Elysia()
   .all("/*", () => {
     logger.warn({ path: "/*" }, "💥 Not Found");
     throw new AppError("Not Found", 404);
+  },{
+    detail: {
+      hide:true
+    }
   })
   .onError(
   ({ error, set }) => {
