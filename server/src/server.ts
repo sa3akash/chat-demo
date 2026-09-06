@@ -44,8 +44,12 @@ const app = new Elysia()
     version: "1.0.0",
     status: "running",
   }))
-
+  
   .use(websocket)
+  .all("/*", () => {
+    logger.warn({ path: "/*" }, "💥 Not Found");
+    throw new AppError("Not Found", 404);
+  })
   .onError(
   ({ error, set }) => {
     let statusCode = 500;

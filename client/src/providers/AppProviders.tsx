@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/context/AuthContext";
 import { SocketProvider } from "@/context/SocketContext";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
+import { Toaster } from "@/components/ui/toast";
 
 const AppProviders = ({
   children,
@@ -13,7 +14,10 @@ const AppProviders = ({
     <NextThemesProvider {...props}>
       <TooltipProvider>
         <AuthProvider>
-          <SocketProvider>{children}</SocketProvider>
+          <SocketProvider>
+            {children}
+            <Toaster />
+          </SocketProvider>
         </AuthProvider>
       </TooltipProvider>
     </NextThemesProvider>

@@ -3,10 +3,8 @@
 import { createContext, useCallback, useContext, useState } from "react";
 
 interface User {
-  id: string;
   username: string;
-  email: string;
-  token: string;
+  accessToken: string;
 }
 
 interface AuthContextType {
