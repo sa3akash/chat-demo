@@ -68,6 +68,8 @@ export const errorMiddleware = new Elysia({ name: "error-middleware" }).onError(
     let errorMessage = "Internal Server Error";
     let errorCode = "INTERNAL_ERROR";
 
+    console.log("error", error);
+
     if (error instanceof AppError) {
       statusCode = error.statusCode;
       errorMessage = error.message;

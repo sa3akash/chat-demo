@@ -1,25 +1,105 @@
-import { Elysia } from 'elysia'
+import { Elysia, t } from "elysia";
 
-import { Auth } from './service'
-import { AuthModel } from './model'
+import { Auth } from "./service";
+import { AuthModel } from "./model";
+import { createInsertSchema } from "drizzle-typebox";
+import { table } from "@/db";
+import { auth } from "@/middlewares/auth";
 
-export const auth = new Elysia({ prefix: '/auth' })
-	.get(
-		'/sign-in',
-		async ({ body, cookie: { session } }) => {
-			const response = await Auth.signIn(body)
+const _userSchema = createInsertSchema(table.users, {
+  email: t.String({ format: "email" }),
+});
 
-			// Set session cookie
-			// (Elysia cookie is proxy, it can never be null/undefined)
-			session!.value = response.token
+export const authRoutes = new Elysia({ prefix: "/auth" })
+  .use(auth)
+  .post(
+    "/sign-in",
+    async (ctx) => {
+      return await Auth.signIn(ctx.body, ctx);
+    },
+    {
+      body: AuthModel.signInBody,
+      // response is optional, use to enforce return type
+      response: {
+        200: AuthModel.authTokensResponse,
+        400: AuthModel.signInInvalid,
+      },
+      detail: {
+        summary: "User Sign In",
+        tags: ["Auth"],
+      },
+    },
+  )
+  .post(
+    "/sign-up",
+    async (ctx) => {
+      return await Auth.signUp(ctx.body, ctx);
+    },
+    {
+      body: AuthModel.signupBody,
+      // response is optional, use to enforce return type
+      response: {
+        200: AuthModel.authTokensResponse,
+        400: AuthModel.signUpError,
+      },
+      detail: {
+        summary: "User Sign Up",
+        tags: ["Auth"],
+      },
+    },
+  )
+  .post(
+    "/refresh",
+    async (ctx) => {
+      return await Auth.refreshToken(ctx.body);
+    },
+    {
+      body: AuthModel.refreshTokenBody,
+      response: {
+        200: AuthModel.authTokensResponse,
+      },
+      detail: {
+        summary: "User Refresh Token",
+        tags: ["Auth"],
+      },
+    },
+  )
+  .post(
+    "/logout",
+    async (ctx) => {
+      return await Auth.logout(ctx.body);
+    },
+    {
+      body: t.Object({
+        refreshToken: t.String(),
+      }),
+      response: {
+        200: t.Object({
+          message: t.String(),
+        }),
+      },
+      detail: {
+        summary: "User Logout",
+        tags: ["Auth"],
+      },
+    },
+  )
 
-			return response
-		}, {
-			body: AuthModel.signInBody,
-			// response is optional, use to enforce return type
-			response: {
-				200: AuthModel.signInResponse,
-				400: AuthModel.signInInvalid
-			}
-		}
-	)
+  .get(
+    "/me",
+    async (ctx) => {
+      return await Auth.me(ctx.user!.userId);
+    },
+    {
+      isAuth: true,
+      response: {
+        200: t.Object({
+          user: t.Omit(_userSchema, ["passwordHash"]),
+        }),
+      },
+      detail: {
+        summary: "Get user profile",
+        tags: ["Auth"],
+      },
+    },
+  );

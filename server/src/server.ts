@@ -3,13 +3,43 @@ import { AppError, errorMiddleware } from "./middlewares/error";
 import { websocket } from "./modules/websocket/gatway";
 import { logger } from "./lib/logger";
 import { dbConnect, dbDisconnect } from "./db";
+import { openapi } from "@elysia/openapi";
+import { authRoutes } from "./modules/auth";
+import { conversationRoutes } from "./modules/conversations";
 
 const app = new Elysia()
   .error({
     AppError,
   })
+  .use(
+    openapi({
+      path: "/docs",
+      documentation: {
+        info: {
+          title: "Elysia API",
+          version: "1.0.0",
+        },
+        components: {
+          securitySchemes: {
+            Bearer: {
+              type: "http",
+              scheme: "bearer",
+              bearerFormat: "JWT",
+            },
+          },
+        },
+        security: [{ Bearer: [] }],
+      },
+    }),
+  )
 
-  .get("/", () => "Hello Elysia")
+  .use(authRoutes)
+  .use(conversationRoutes)
+  .get("/health", () => ({
+    message: "OK",
+    version: "1.0.0",
+    status: "running",
+  }))
 
   .use(websocket)
   .use(errorMiddleware)

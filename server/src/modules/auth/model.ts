@@ -6,11 +6,25 @@ export const AuthModel = {
 		username: t.String(),
 		password: t.String(),
 	}),
-	signInResponse: t.Object({
+	authTokensResponse: t.Object({
 		username: t.String(),
-		token: t.String(),
+		accessToken: t.String(),
+		refreshToken: t.String(),
 	}),
-	signInInvalid: t.Literal('Invalid username or password')
+
+	signupBody: t.Object({
+		username: t.String(),
+		email: t.String(),
+		password: t.String(),
+	}),
+
+	refreshTokenBody: t.Object({
+		refreshToken: t.String(),
+	}),
+
+	signUpError: t.Literal('User already exists'),
+
+	signInInvalid: t.Literal('Invalid username or password'),
 } as const
 
 // Optional, cast all model to TypeScript type
