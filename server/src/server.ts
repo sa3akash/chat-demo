@@ -75,7 +75,7 @@ const app = new Elysia()
     dbConnect()
       .then(() => {
         logger.info(
-          `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
+          `🦊 Elysia is running at http://${app.server?.hostname}:${app.server?.port}/docs`,
         );
       })
       .catch((error) => {
