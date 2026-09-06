@@ -1,25 +1,47 @@
-import { Elysia } from 'elysia'
+import { Elysia } from "elysia";
 
-import { Auth } from './service'
-import { AuthModel } from './model'
+import { auth } from "@/middlewares/auth";
+import { Message } from "./service";
+import { messageSchema, MessageSchema } from "./model";
 
-export const auth = new Elysia({ prefix: '/auth' })
-	.get(
-		'/sign-in',
-		async ({ body, cookie: { session } }) => {
-			const response = await Auth.signIn(body)
-
-			// Set session cookie
-			// (Elysia cookie is proxy, it can never be null/undefined)
-			session!.value = response.token
-
-			return response
-		}, {
-			body: AuthModel.signInBody,
-			// response is optional, use to enforce return type
-			response: {
-				200: AuthModel.signInResponse,
-				400: AuthModel.signInInvalid
-			}
-		}
-	)
+export const messagesRoutes = new Elysia({ prefix: "/messages" })
+  .use(auth)
+  .post(
+    "/send",
+    async ({ body, user }) => {
+      const message = Message.sendMessage(body, user.userId);
+      return message;
+    },
+    {
+      body: messageSchema.sendMessageBody,
+      // response is optional, use to enforce return type
+      isAuth: true,
+      response: {
+        200: messageSchema.singleMessageResponse,
+        400: messageSchema.sendMessageInvalid,
+      },
+      detail: {
+        summary: "Send a new message in a conversation",
+        tags: ["Messages"],
+      },
+    },
+  )
+  .get(
+    "/",
+    async ({ query }) => {
+      return Message.getMessagesByConversation(query);
+    },
+    {
+      query: messageSchema.getMessagesByConversationQuery,
+      // response is optional, use to enforce return type
+      isAuth: true,
+      response: {
+        200: messageSchema.getMessagesByConversationResponse,
+        400: messageSchema.getMessagesByConversationInvalid,
+      },
+      detail: {
+        summary: "Get messages by conversation",
+        tags: ["Messages"],
+      },
+    },
+  );

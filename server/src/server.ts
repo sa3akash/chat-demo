@@ -6,6 +6,7 @@ import { dbConnect, dbDisconnect } from "./db";
 import { openapi } from "@elysia/openapi";
 import { authRoutes } from "./modules/auth";
 import { conversationRoutes } from "./modules/conversations";
+import { messagesRoutes } from "./modules/messages";
 
 const app = new Elysia()
   .error({
@@ -35,6 +36,7 @@ const app = new Elysia()
 
   .use(authRoutes)
   .use(conversationRoutes)
+  .use(messagesRoutes)
   .get("/health", () => ({
     message: "OK",
     version: "1.0.0",

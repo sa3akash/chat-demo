@@ -2,9 +2,8 @@
 import { Context, status } from "elysia";
 
 import type { AuthModel } from "./model";
-import { db } from "@/db";
+import { db, refreshTokens, users } from "@/db";
 import { eq } from "drizzle-orm";
-import { refreshTokens, users } from "@/db/schema";
 import { NotFoundError } from "@/middlewares/error";
 import { SecureTokenService } from "@/lib/SecureTokenService";
 import { AuthPayload, tokenEngine } from "@/middlewares/auth";
