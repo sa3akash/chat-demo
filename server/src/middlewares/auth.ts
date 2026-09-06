@@ -1,7 +1,7 @@
+import { UnauthorizedError } from "@/lib/customError";
 import { SecureTokenService } from "@/lib/SecureTokenService";
 import bearer from "@elysia/bearer";
 import { Elysia } from "elysia";
-import { UnauthorizedError } from "./error";
 
 export interface AuthPayload {
   username: string;

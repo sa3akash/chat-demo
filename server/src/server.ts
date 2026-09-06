@@ -1,5 +1,5 @@
 import { Elysia } from "elysia";
-import { AppError, errorMiddleware } from "./middlewares/error";
+import { errorMiddleware } from "./middlewares/error";
 import { websocket } from "./modules/websocket/gatway";
 import { logger } from "./lib/logger";
 import { dbConnect, dbDisconnect } from "./db";
@@ -7,11 +7,13 @@ import { openapi } from "@elysia/openapi";
 import { authRoutes } from "./modules/auth";
 import { conversationRoutes } from "./modules/conversations";
 import { messagesRoutes } from "./modules/messages";
+import { AppError } from "./lib/customError";
 
 const app = new Elysia()
   .error({
     AppError,
   })
+
   .use(
     openapi({
       path: "/docs",
@@ -44,7 +46,31 @@ const app = new Elysia()
   }))
 
   .use(websocket)
-  .use(errorMiddleware)
+  .onError(
+  ({ error, set }) => {
+    let statusCode = 500;
+    let errorMessage = "Internal Server Error";
+    let errorCode = "INTERNAL_ERROR";
+
+    console.log("error", error);
+
+    if (error instanceof AppError) {
+      statusCode = error.statusCode;
+      errorMessage = error.message;
+      errorCode = error.status.toUpperCase() + "_ERROR";
+    } else {
+      logger.error({ err: error }, "💥 Unhandled Exception");
+    }
+
+    set.status = statusCode;
+    return {
+      success: false,
+      error: errorCode,
+      message: errorMessage,
+    };
+  },
+)
+
   .listen(4400, () => {
     dbConnect()
       .then(() => {

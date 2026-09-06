@@ -4,9 +4,9 @@ import { Context, status } from "elysia";
 import type { AuthModel } from "./model";
 import { db, refreshTokens, users } from "@/db";
 import { eq } from "drizzle-orm";
-import { NotFoundError } from "@/middlewares/error";
 import { SecureTokenService } from "@/lib/SecureTokenService";
 import { AuthPayload, tokenEngine } from "@/middlewares/auth";
+import { NotFoundError } from "@/lib/customError";
 
 
 

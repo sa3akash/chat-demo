@@ -4,8 +4,7 @@ import { status } from "elysia";
 import type { MessageSchema } from "./model";
 import { conversations, db, messages, users } from "@/db";
 import { and, desc, eq, lt } from "drizzle-orm";
-import { BadRequestError } from "@/middlewares/error";
-
+import { BadRequestError } from "@/lib/customError";
 // If a class doesn't need to store a property,
 // you can use an `abstract class` to avoid class allocation
 export abstract class Message {

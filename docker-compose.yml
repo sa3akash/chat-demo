@@ -1,0 +1,26 @@
+name: auth
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: auth-db
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_DB=video
+
+  redis:
+    image: redis:alpine
+    container_name: auth-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+volumes:
+  db-data:
+  redis-data:

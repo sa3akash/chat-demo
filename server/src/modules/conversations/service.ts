@@ -1,4 +1,4 @@
-import { BadRequestError } from "@/middlewares/error";
+import { BadRequestError } from "@/lib/customError";
 import { conversationMembers, conversations, db, messages, users } from "@/db";
 import { desc, eq, inArray } from "drizzle-orm";
 import type { ConversationModel } from "./model";
