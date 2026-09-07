@@ -3,10 +3,11 @@ import { Conversation } from "./service";
 import { auth } from "@/middlewares/auth";
 import { ConversationModel } from "./model";
 import { table } from "@/db";
-import { createInsertSchema } from "drizzle-typebox";
+import { createInsertSchema, createSelectSchema } from "drizzle-typebox";
 import { t } from "elysia";
 
 const _conversatonSchema = createInsertSchema(table.conversations);
+const _userSchema = createSelectSchema(table.users);
 
 export const conversationRoutes = new Elysia({ prefix: "/conversations" })
   .use(auth)
@@ -49,6 +50,31 @@ export const conversationRoutes = new Elysia({ prefix: "/conversations" })
       },
       detail: {
         summary: "Get Conversations",
+        tags: ["Conversation"],
+      },
+    },
+  )
+  .get(
+    "/:conversationId/others",
+    async ({ params, user }) => {
+      const response = await Conversation.getOthersUser(
+        params.conversationId,
+        user.userId,
+      );
+
+      return response;
+    },
+    {
+      params: t.Object({
+        conversationId: t.String(),
+      }),
+      isAuth: true,
+      response: {
+        200: t.Pick(_userSchema, ["username", "email"]),
+        400: ConversationModel.createConversationInvalid,
+      },
+      detail: {
+        summary: "Get Others User",
         tags: ["Conversation"],
       },
     },

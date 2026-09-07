@@ -172,4 +172,33 @@ export abstract class Conversation {
       };
     });
   }
+
+  static async getOthersUser(conversationId: string, userId: string) {
+    // fetch conversation members
+    const members = await db
+      .select({
+        userId: conversationMembers.userId,
+        user: {
+          id: users.id,
+          username: users.username,
+          email: users.email,
+        },
+      })
+      .from(conversationMembers)
+      .leftJoin(users, eq(conversationMembers.userId, users.id))
+      .where(eq(conversationMembers.conversationId, conversationId))
+      .execute();
+
+    // filter out the current user
+    const otherUser = members.find((m) => m.userId !== userId);
+
+    if (!otherUser) {
+      throw new BadRequestError("User not found");
+    }
+
+    return {
+      username: otherUser.user?.username!,
+      email: otherUser.user?.email!,
+    };
+  }
 }

@@ -102,4 +102,26 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
         tags: ["Auth"],
       },
     },
+  )
+  .get(
+    "/search",
+    async (ctx) => {
+      return await Auth.searchUserByUsername(
+        ctx.query.username,
+        ctx.user.userId,
+      );
+    },
+    {
+      query: t.Object({
+        username: t.String(),
+      }),
+      isAuth: true,
+      response: {
+        200: t.Array(t.Pick(_userSchema, ["username","id"])),
+      },
+      detail: {
+        summary: "Search user by username",
+        tags: ["Auth"],
+      },
+    },
   );

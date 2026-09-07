@@ -1,6 +1,7 @@
 import { getConversations } from "@/actions/conversation";
 import React from "react";
 import SingleConversation from "./items/SingleConversation";
+import ConversationHeader from "./items/ConversationHeader";
 
 interface ConversationParams {
   conversationId: string | undefined;
@@ -14,19 +15,16 @@ const Conversation = async ({ conversationId }: ConversationParams) => {
 
   return (
     <div className="max-w-72 w-full border-r p-4">
-      <div className="flex items-center justify-between mb-4 border-b pb-2">
-        <h1 className="text-2xl font-bold">Conversations</h1>
-        <button className="text-blue-500">New Chat</button>
-      </div>
+      <ConversationHeader />
 
       {/* list all conversations */}
 
-      <div>
+      <div className="flex flex-col gap-2">
         {data?.map((conversation) => (
           <SingleConversation
             key={conversation.id}
             conversation={conversation}
-            isActive={true}
+            isActive={conversation.id === conversationId}
           />
         ))}
       </div>

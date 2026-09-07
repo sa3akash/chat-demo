@@ -31,8 +31,6 @@ export const signUp = async (
     }),
   });
 
-  console.log("response", response);
-
   if (!response.ok) {
     return {
       error: "Failed to sign up",
@@ -49,13 +47,13 @@ export const signUp = async (
   }
 
   const data = await response.json();
-  const { username, accessToken, refreshToken } = data;
+  const { username, accessToken, refreshToken, id } = data;
 
   await setCookies("accessToken", accessToken);
   await setCookies("refreshToken", refreshToken, 30);
 
   return {
-    data: { username, accessToken },
+    data: { username, accessToken, id },
     success: true,
     error: null,
   };
@@ -87,13 +85,13 @@ export const signIn = async (usernameOrEmail: string, password: string) => {
   }
 
   const data = await response.json();
-  const { username, accessToken, refreshToken } = data;
+  const { username, accessToken, refreshToken,id } = data;
 
   await setCookies("accessToken", accessToken);
   await setCookies("refreshToken", refreshToken, 30);
 
   return {
-    data: { username, accessToken },
+    data: { username, accessToken, id },
     success: true,
     error: null,
   };
@@ -135,9 +133,56 @@ export const getUser = async () => {
   return {
     data: {
       username: user.username,
+      id: user.id,
       accessToken,
     },
     success: true,
     error: null,
   };
 };
+
+
+export const searchUserByUsername=async(username:string)=>{
+  try {
+    const cookieStore = await cookies();
+    const accessToken = cookieStore.get("accessToken")?.value;
+    if (!accessToken) {
+      return {
+        error: "No access token found",
+        success: false,
+      };
+    }
+    const response = await fetch(`${BASE_URL}/search?username=${username}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    if (!response.ok) {
+      return {
+        error: "Failed to search user",
+        success: false,
+      };
+    }
+    if (!response.headers.get("content-type")?.includes("application/json")) {
+      const message = await response.text();
+      return {
+        error: message,
+        success: false,
+      };
+    }
+    const users = await response.json();
+    return {
+      data: users,
+      success: true,
+      error: null,
+    };
+  } catch (error) {
+    console.log(error);
+    return {
+      error: "Internal server error",
+      success: false,
+    };
+  }
+}

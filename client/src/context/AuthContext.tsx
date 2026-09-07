@@ -1,7 +1,6 @@
 "use client";
 
 import { getUser } from "@/actions/auth";
-import { toast } from "@/components/ui/toast";
 import {
   createContext,
   useCallback,
@@ -11,6 +10,7 @@ import {
 } from "react";
 
 interface User {
+  id: string;
   username: string;
   accessToken: string;
 }
@@ -45,16 +45,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     getUser()
-      .then(({ data, error, success }) => {
+      .then(({ data, success }) => {
         setLoading(false);
         if (success && data) {
           storeUser(data);
         } else {
           storeUser(null);
-          toast.add({
-            description: error,
-            type: "error",
-          });
         }
       })
       .catch((e) => {

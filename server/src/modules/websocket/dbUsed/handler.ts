@@ -218,6 +218,11 @@ export async function messageHandler(
         break;
       }
 
+      case "heartbeat": {
+        const status = "online";
+        
+      }
+
       default:
         break;
     }

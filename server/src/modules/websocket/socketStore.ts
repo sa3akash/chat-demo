@@ -1,44 +1,6 @@
-import Redis from "ioredis";
 import type { Elysia } from "elysia";
-import { MessageSchema } from "./types";
-import { db, users } from "@/db";
-import { eq } from "drizzle-orm";
+import { MessageSchema, PresenceStatus } from "./types";
 import { logger } from "@/lib/logger";
-
-const REDIS_HOST = process.env.REDIS_HOST || "localhost";
-const REDIS_PORT = Number(process.env.REDIS_PORT) || 6379;
-
-export const pub = new Redis({
-  host: REDIS_HOST,
-  port: REDIS_PORT,
-  lazyConnect: true,
-  maxRetriesPerRequest: 3,
-});
-
-export const sub = new Redis({
-  host: REDIS_HOST,
-  port: REDIS_PORT,
-  lazyConnect: true,
-  maxRetriesPerRequest: 3,
-});
-
-pub.on("error", (err) => {
-  logger.error({ err }, "Redis Pub Error");
-});
-
-sub.on("error", (err) => {
-  logger.error({ err }, "Redis Sub Error");
-});
-
-// Auto-connect redis
-Promise.all([pub.connect().catch(() => {}), sub.connect().catch(() => {})]).then(
-  () => {
-    sub.subscribe("chat", (err) => {
-      if (err) logger.error({ err }, "Redis subscription failed");
-      else logger.info("Redis sub listening on channel: chat");
-    });
-  },
-);
 
 // Extract Elysia internal WS type
 export type WS = Parameters<
@@ -58,20 +20,8 @@ export async function addUser(userId: string, ws: WS) {
   } else {
     userSockets.set(userId, new Set([ws]));
 
-    try {
-      if (pub.status === "ready") {
-        await pub.sadd("presence:online", userId);
-      }
-      // Update database status
-      await db
-        .update(users)
-        .set({ status: "online", lastSeenAt: new Date() })
-        .where(eq(users.id, userId));
-    } catch (e) {
-      logger.error({ err: e }, "Failed to update user online status");
-    }
+    ws.subscribe(`user:${userId}`);
 
-    // Broadcast presence update
     const presenceMsg: MessageSchema = {
       type: "presence",
       payload: {
@@ -81,17 +31,7 @@ export async function addUser(userId: string, ws: WS) {
       },
     };
 
-    if (pub.status === "ready") {
-      await pub.publish(
-        "chat",
-        JSON.stringify({
-          targetUserId: "*",
-          message: presenceMsg,
-        }),
-      );
-    } else {
-      broadcastToAllLocal(presenceMsg);
-    }
+    broadcastToAllLocal(presenceMsg);
   }
 }
 
@@ -105,19 +45,7 @@ export async function disconnectUser(userId: string, ws: WS) {
   sockets.delete(ws);
   if (sockets.size === 0) {
     userSockets.delete(userId);
-
-    try {
-      if (pub.status === "ready") {
-        await pub.srem("presence:online", userId);
-      }
-      // Update database status
-      await db
-        .update(users)
-        .set({ status: "offline", lastSeenAt: new Date() })
-        .where(eq(users.id, userId));
-    } catch (e) {
-      logger.error({ err: e }, "Failed to update user offline status");
-    }
+    ws.unsubscribe(`user:${userId}`);
 
     const presenceMsg: MessageSchema = {
       type: "presence",
@@ -128,17 +56,7 @@ export async function disconnectUser(userId: string, ws: WS) {
       },
     };
 
-    if (pub.status === "ready") {
-      await pub.publish(
-        "chat",
-        JSON.stringify({
-          targetUserId: "*",
-          message: presenceMsg,
-        }),
-      );
-    } else {
-      broadcastToAllLocal(presenceMsg);
-    }
+    broadcastToAllLocal(presenceMsg);
   }
 }
 
@@ -174,26 +92,3 @@ export function broadcastToAllLocal(message: MessageSchema) {
     });
   });
 }
-
-// --- Redis Pub/Sub Cluster Subscriber Listener ---
-sub.on("message", (channel, payloadStr) => {
-  if (channel !== "chat") return;
-
-  try {
-    const { targetUserId, message, excludeSocketId } = JSON.parse(
-      payloadStr,
-    ) as {
-      targetUserId: string;
-      message: MessageSchema;
-      excludeSocketId?: string;
-    };
-
-    if (targetUserId === "*") {
-      broadcastToAllLocal(message);
-    } else {
-      broadcastToLocalUser(targetUserId, message, excludeSocketId);
-    }
-  } catch (err) {
-    logger.error({ err }, "Failed parsing pub/sub message payload");
-  }
-});

@@ -8,6 +8,7 @@ export const AuthModel = {
 	}),
 	authTokensResponse: t.Object({
 		username: t.String(),
+		id: t.String(),
 		accessToken: t.String(),
 		refreshToken: t.String(),
 	}),

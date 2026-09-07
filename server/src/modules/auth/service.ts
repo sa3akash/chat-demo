@@ -3,19 +3,17 @@ import { Context, status } from "elysia";
 
 import type { AuthModel } from "./model";
 import { db, refreshTokens, users } from "@/db";
-import { eq } from "drizzle-orm";
+import { and, eq, ilike, ne } from "drizzle-orm";
 import { SecureTokenService } from "@/lib/SecureTokenService";
 import { AuthPayload, tokenEngine } from "@/middlewares/auth";
 import { NotFoundError } from "@/lib/customError";
-
-
 
 // If a class doesn't need to store a property,
 // you can use an `abstract class` to avoid class allocation
 export abstract class Auth {
   static async signIn(
     { username, password }: AuthModel["signInBody"],
-    ctx:any,
+    ctx: any,
   ) {
     const user = await db
       .select()
@@ -72,6 +70,7 @@ export abstract class Auth {
 
     return {
       username,
+      id: user[0].id,
       accessToken,
       refreshToken,
     };
@@ -138,6 +137,7 @@ export abstract class Auth {
 
     return {
       username,
+      id: user[0].id,
       accessToken,
       refreshToken,
     };
@@ -192,25 +192,34 @@ export abstract class Auth {
 
     return {
       username: user[0].username,
+      id: user[0].id,
       accessToken: accessTokenNew,
       refreshToken: refreshTokenNew,
     };
   }
 
   static async logout({ refreshToken }: { refreshToken: string }) {
-    await db
-      .delete(refreshTokens)
-      .where(eq(refreshTokens.token, refreshToken));
+    await db.delete(refreshTokens).where(eq(refreshTokens.token, refreshToken));
 
-      return {
-        message: "User logged out successfully",
-      }
+    return {
+      message: "User logged out successfully",
+    };
   }
 
   static async me(id: string) {
-	const user = await db.select().from(users).where(eq(users.id, id)); 
-	return {
-		user: user[0],
-	}
+    const user = await db.select().from(users).where(eq(users.id, id));
+    return {
+      user: user[0],
+    };
+  }
+
+  static async searchUserByUsername(username: string, userId:string) {
+    // not includes search user in result 
+    const user = await db
+      .select()
+      .from(users)
+      .where(and(ilike(users.username, `%${username}%`), ne(users.id, userId)))
+      .limit(10);
+    return user;
   }
 }

@@ -2,6 +2,8 @@ import { t, Static } from "elysia";
 
 // --- Base Schemas ---
 
+export type PresenceStatus = "online" | "offline" | "away" | "dnd";
+
 export const chatPayload = t.Object({
   id: t.String(),
   conversationId: t.String(),
@@ -60,6 +62,10 @@ export const presencePayload = t.Object({
   lastSeen: t.Optional(t.Number()),
 });
 
+export const heartbeatPayload = t.Object({
+  userId: t.String()
+});
+
 export const groupActionPayload = t.Object({
   groupId: t.String(),
   action: t.Union([
@@ -94,6 +100,7 @@ export const messageSchema = t.Union([
   t.Object({ type: t.Literal("presence"), payload: presencePayload }),
   t.Object({ type: t.Literal("group_action"), payload: groupActionPayload }),
   t.Object({ type: t.Literal("notification"), payload: notificationPayload }),
+  t.Object({ type: t.Literal("heartbeat"), payload: heartbeatPayload }),
 ]);
 
 export type MessageSchema = Static<typeof messageSchema>;
