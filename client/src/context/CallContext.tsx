@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/preserve-manual-memoization */
 "use client";
 
 import React, {
@@ -22,13 +23,15 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 function createVolumeAnalyser(
   stream: MediaStream,
-  onVolume: (v: number) => void
+  onVolume: (v: number) => void,
 ): () => void {
   let rafId = 0;
   let audioCtx: AudioContext | null = null;
 
   try {
-    audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    audioCtx = new (
+      window.AudioContext || (window as any).webkitAudioContext
+    )();
     const source = audioCtx.createMediaStreamSource(stream);
     const analyser = audioCtx.createAnalyser();
     analyser.fftSize = 512;
@@ -76,7 +79,7 @@ interface CallContextType {
   isMicMuted: boolean;
   isCameraOff: boolean;
   isScreenSharing: boolean;
-  isRemoteMuted: boolean;         // true when remote has no active video tracks
+  isRemoteMuted: boolean; // true when remote has no active video tracks
   localStream: MediaStream | null;
   remoteStream: MediaStream | null;
   screenStream: MediaStream | null;
@@ -88,7 +91,7 @@ interface CallContextType {
     recipientId: string,
     recipientName: string,
     conversationId: string,
-    callType: CallType
+    callType: CallType,
   ) => Promise<void>;
   acceptCall: () => Promise<void>;
   rejectCall: () => void;
@@ -126,7 +129,9 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
   const [callState, setCallState] = useState<CallState>("idle");
   const [callType, setCallType] = useState<CallType>("audio");
   const [partner, setPartner] = useState<CallParticipant | null>(null);
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [activeConversationId, setActiveConversationId] = useState<
+    string | null
+  >(null);
   const [callDuration, setCallDuration] = useState(0);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
@@ -152,7 +157,9 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
   const callStateRef = useRef<CallState>("idle");
 
   // Keep callStateRef in sync for use inside stable closures
-  useEffect(() => { callStateRef.current = callState; }, [callState]);
+  useEffect(() => {
+    callStateRef.current = callState;
+  }, [callState]);
 
   // ── Volume analysers ──────────────────────────────────────────────────────
 
@@ -165,7 +172,10 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
     if (localStream) {
       // Slight delay so AudioContext isn't created before user gesture
       const t = setTimeout(() => {
-        localVolCleanupRef.current = createVolumeAnalyser(localStream, setLocalVolume);
+        localVolCleanupRef.current = createVolumeAnalyser(
+          localStream,
+          setLocalVolume,
+        );
       }, 300);
       return () => {
         clearTimeout(t);
@@ -183,7 +193,10 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
 
     if (remoteStream && callState === "connected") {
       const t = setTimeout(() => {
-        remoteVolCleanupRef.current = createVolumeAnalyser(remoteStream, setRemoteVolume);
+        remoteVolCleanupRef.current = createVolumeAnalyser(
+          remoteStream,
+          setRemoteVolume,
+        );
       }, 300);
       return () => {
         clearTimeout(t);
@@ -196,10 +209,15 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Detect whether remote has active video (for muted/fallback indicator)
   useEffect(() => {
-    if (!remoteStream) { setIsRemoteMuted(false); return; }
+    if (!remoteStream) {
+      setIsRemoteMuted(false);
+      return;
+    }
     const check = () => {
       const videoTracks = remoteStream.getVideoTracks();
-      const hasActiveVideo = videoTracks.some((t) => t.enabled && t.readyState === "live");
+      const hasActiveVideo = videoTracks.some(
+        (t) => t.enabled && t.readyState === "live",
+      );
       setIsRemoteMuted(!hasActiveVideo);
     };
     check();
@@ -221,12 +239,17 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (callState === "connected") {
       setCallDuration(0);
-      durationTimerRef.current = setInterval(() => setCallDuration((p) => p + 1), 1000);
+      durationTimerRef.current = setInterval(
+        () => setCallDuration((p) => p + 1),
+        1000,
+      );
     } else {
       if (durationTimerRef.current) clearInterval(durationTimerRef.current);
       setCallDuration(0);
     }
-    return () => { if (durationTimerRef.current) clearInterval(durationTimerRef.current); };
+    return () => {
+      if (durationTimerRef.current) clearInterval(durationTimerRef.current);
+    };
   }, [callState]);
 
   // ── Cleanup ───────────────────────────────────────────────────────────────
@@ -267,8 +290,19 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
   // ── Get media (camera/mic) ────────────────────────────────────────────────
   const getMedia = useCallback(async (type: CallType): Promise<MediaStream> => {
     const constraints: MediaStreamConstraints = {
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      video: type === "video" ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" } : false,
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+      video:
+        type === "video"
+          ? {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              facingMode: "user",
+            }
+          : false,
     };
     try {
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -277,7 +311,9 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
       return stream;
     } catch (err) {
       console.warn("getUserMedia failed, using silent fallback:", err);
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const audioCtx = new (
+        window.AudioContext || (window as any).webkitAudioContext
+      )();
       const osc = audioCtx.createOscillator();
       const dst = audioCtx.createMediaStreamDestination();
       osc.connect(dst);
@@ -341,7 +377,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
 
       return pc;
     },
-    [emit, cleanupMedia]
+    [emit, cleanupMedia],
   );
 
   // ── 1. Start outgoing call ────────────────────────────────────────────────
@@ -350,7 +386,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
       recipientId: string,
       recipientName: string,
       conversationId: string,
-      type: CallType
+      type: CallType,
     ) => {
       cleanupMedia();
       setCallType(type);
@@ -366,13 +402,18 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
 
-        emit("call:initiate", { recipientId, conversationId, callType: type, offer });
+        emit("call:initiate", {
+          recipientId,
+          conversationId,
+          callType: type,
+          offer,
+        });
       } catch (err) {
         console.error("startCall failed:", err);
         cleanupMedia();
       }
     },
-    [cleanupMedia, getMedia, createPeerConnection, emit]
+    [cleanupMedia, getMedia, createPeerConnection, emit],
   );
 
   // ── 2. Accept incoming call ───────────────────────────────────────────────
@@ -384,7 +425,9 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
       const pc = createPeerConnection(partner.id, activeConversationId);
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
-      await pc.setRemoteDescription(new RTCSessionDescription(incomingOfferRef.current));
+      await pc.setRemoteDescription(
+        new RTCSessionDescription(incomingOfferRef.current),
+      );
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
 
@@ -401,12 +444,23 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
       console.error("acceptCall failed:", err);
       cleanupMedia();
     }
-  }, [partner, activeConversationId, callType, getMedia, createPeerConnection, emit, cleanupMedia]);
+  }, [
+    partner,
+    activeConversationId,
+    callType,
+    getMedia,
+    createPeerConnection,
+    emit,
+    cleanupMedia,
+  ]);
 
   // ── 3. Reject incoming call ───────────────────────────────────────────────
   const rejectCall = useCallback(() => {
     if (partner && activeConversationId) {
-      emit("call:reject", { callerId: partner.id, conversationId: activeConversationId });
+      emit("call:reject", {
+        callerId: partner.id,
+        conversationId: activeConversationId,
+      });
     }
     cleanupMedia();
   }, [partner, activeConversationId, emit, cleanupMedia]);
@@ -414,7 +468,10 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
   // ── 4. End active call ────────────────────────────────────────────────────
   const endCall = useCallback(() => {
     if (partner && activeConversationId) {
-      emit("call:end", { targetUserId: partner.id, conversationId: activeConversationId });
+      emit("call:end", {
+        targetUserId: partner.id,
+        conversationId: activeConversationId,
+      });
     }
     cleanupMedia();
   }, [partner, activeConversationId, emit, cleanupMedia]);
@@ -429,11 +486,76 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   // ── 6. Toggle camera ──────────────────────────────────────────────────────
-  const toggleCamera = useCallback(() => {
-    const track = localStreamRef.current?.getVideoTracks()[0];
-    if (track) {
-      track.enabled = !track.enabled;
-      setIsCameraOff(!track.enabled);
+  const toggleCamera = useCallback(async () => {
+    const stream = localStreamRef.current;
+
+    if (!stream) return;
+
+    const videoTrack = stream.getVideoTracks()[0];
+
+    // CAMERA OFF
+    if (videoTrack && videoTrack.enabled) {
+      videoTrack.enabled = false;
+      setIsCameraOff(true);
+
+      const sender = pcRef.current
+        ?.getSenders()
+        .find((s) => s.track?.kind === "video");
+
+      if (sender) {
+        await sender.replaceTrack(videoTrack);
+      }
+
+      return;
+    }
+
+    // CAMERA ON
+    if (videoTrack) {
+      videoTrack.enabled = true;
+
+      const sender = pcRef.current
+        ?.getSenders()
+        .find((s) => s.track?.kind === "video");
+
+      if (sender) {
+        await sender.replaceTrack(videoTrack);
+      }
+
+      setLocalStream(new MediaStream(stream.getTracks()));
+      setIsCameraOff(false);
+
+      return;
+    }
+
+    // Track was removed/stopped
+    try {
+      const cameraStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: "user",
+        },
+      });
+
+      const newTrack = cameraStream.getVideoTracks()[0];
+
+      stream.addTrack(newTrack);
+
+      const sender = pcRef.current
+        ?.getSenders()
+        .find((s) => s.track?.kind === "video");
+
+      if (sender) {
+        await sender.replaceTrack(newTrack);
+      } else if (pcRef.current) {
+        pcRef.current.addTrack(newTrack, stream);
+      }
+
+      localStreamRef.current = stream;
+      setLocalStream(new MediaStream(stream.getTracks()));
+      setIsCameraOff(false);
+    } catch (err) {
+      console.error("Failed to enable camera:", err);
     }
   }, []);
 
@@ -484,41 +606,57 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
 
   // ── 9. Socket signaling events ────────────────────────────────────────────
   useEffect(() => {
-    const unsubIncoming = subscribe("call:incoming", (data: IncomingCallPayload) => {
-      if (callStateRef.current !== "idle") {
-        emit("call:reject", { callerId: data.callerId, conversationId: data.conversationId });
-        return;
-      }
-      setCallType(data.callType);
-      setPartner({ id: data.callerId, name: data.callerName });
-      setActiveConversationId(data.conversationId);
-      incomingOfferRef.current = data.offer;
-      setCallState("incoming");
-    });
-
-    const unsubAccepted = subscribe("call:accepted", async (data: CallAcceptedPayload) => {
-      if (pcRef.current && data.answer) {
-        try {
-          await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
-          // onconnectionstatechange will fire "connected" shortly after
-        } catch (err) {
-          console.error("setRemoteDescription failed:", err);
+    const unsubIncoming = subscribe(
+      "call:incoming",
+      (data: IncomingCallPayload) => {
+        if (callStateRef.current !== "idle") {
+          emit("call:reject", {
+            callerId: data.callerId,
+            conversationId: data.conversationId,
+          });
+          return;
         }
-      }
-    });
+        setCallType(data.callType);
+        setPartner({ id: data.callerId, name: data.callerName });
+        setActiveConversationId(data.conversationId);
+        incomingOfferRef.current = data.offer;
+        setCallState("incoming");
+      },
+    );
+
+    const unsubAccepted = subscribe(
+      "call:accepted",
+      async (data: CallAcceptedPayload) => {
+        if (pcRef.current && data.answer) {
+          try {
+            await pcRef.current.setRemoteDescription(
+              new RTCSessionDescription(data.answer),
+            );
+            // onconnectionstatechange will fire "connected" shortly after
+          } catch (err) {
+            console.error("setRemoteDescription failed:", err);
+          }
+        }
+      },
+    );
 
     const unsubRejected = subscribe("call:rejected", () => cleanupMedia());
-    const unsubEnded    = subscribe("call:ended",    () => cleanupMedia());
+    const unsubEnded = subscribe("call:ended", () => cleanupMedia());
 
-    const unsubIce = subscribe("call:ice-candidate", async (data: CallIceCandidatePayload) => {
-      if (pcRef.current && data.candidate) {
-        try {
-          await pcRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
-        } catch (err) {
-          console.error("addIceCandidate failed:", err);
+    const unsubIce = subscribe(
+      "call:ice-candidate",
+      async (data: CallIceCandidatePayload) => {
+        if (pcRef.current && data.candidate) {
+          try {
+            await pcRef.current.addIceCandidate(
+              new RTCIceCandidate(data.candidate),
+            );
+          } catch (err) {
+            console.error("addIceCandidate failed:", err);
+          }
         }
-      }
-    });
+      },
+    );
 
     return () => {
       unsubIncoming();
@@ -527,7 +665,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
       unsubEnded();
       unsubIce();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subscribe, emit, cleanupMedia]);
 
   return (
