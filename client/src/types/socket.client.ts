@@ -72,6 +72,24 @@ export interface ConversationUpdatePayload {
   unreadCount?: number;
 }
 
+export interface ConversationNewPayload {
+  conversation: {
+    id: string;
+    type: string;
+    title: string;
+    iconUrl?: string | null;
+    lastMessageAt?: string | null;
+    metadata?: object;
+    unreadCount: number;
+    isMuted: boolean;
+    isPinned: boolean;
+    isArchived: boolean;
+    latestMessage: null;
+    members: { id: string; username: string; email: string }[];
+    otherUser: { id: string; username: string; email: string } | null;
+  };
+}
+
 export interface PresenceInitialPayload {
   onlineUserIds: string[];
 }
@@ -131,6 +149,7 @@ export interface ServerToClientEvents {
   "reaction:update": ReactionUpdatePayload;
   "message:delete": MessageDeletePayload;
   "conversation:update": ConversationUpdatePayload;
+  "conversation:new": ConversationNewPayload;
   "presence:initial": PresenceInitialPayload;
   "presence:update": PresenceUpdatePayload;
   "call:incoming": IncomingCallPayload;

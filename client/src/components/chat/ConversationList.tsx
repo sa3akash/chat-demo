@@ -84,6 +84,19 @@ export const ConversationList: React.FC<ConversationListProps> = ({
       }
     );
 
+    // Handle new conversations created by another user (or ourselves in another tab)
+    const unsubConvNew = subscribe(
+      "conversation:new",
+      (data: { conversation: IConversation }) => {
+        if (!data?.conversation) return;
+        setConversations((prev) => {
+          // Avoid duplicates
+          if (prev.some((c) => c.id === data.conversation.id)) return prev;
+          return [data.conversation, ...prev];
+        });
+      }
+    );
+
     const unsubRead = subscribe("receipt:read", (data: ReceiptReadPayload) => {
       setConversations((prev) =>
         prev.map((c) =>
@@ -94,6 +107,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
 
     return () => {
       unsubConvUpdate();
+      unsubConvNew();
       unsubRead();
     };
   }, [subscribe, activeConversationId]);

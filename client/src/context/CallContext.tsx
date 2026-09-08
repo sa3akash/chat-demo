@@ -82,6 +82,9 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
   const incomingOfferRef = useRef<any>(null);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  // Ref to avoid stale closure in socket event handler
+  const callStateRef = useRef<CallState>("idle");
+  useEffect(() => { callStateRef.current = callState; }, [callState]);
 
   // Call duration counter
   useEffect(() => {
@@ -303,7 +306,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
   // 7. Subscribe to WebSocket Call Signaling Events
   useEffect(() => {
     const unsubIncoming = subscribe("call:incoming", (data: IncomingCallPayload) => {
-      if (callState !== "idle") {
+      if (callStateRef.current !== "idle") {
         // Busy: auto reject
         emit("call:reject", {
           callerId: data.callerId,
@@ -357,7 +360,8 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
       unsubEnded();
       unsubIce();
     };
-  }, [subscribe, callState, emit, cleanupMedia]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subscribe, emit, cleanupMedia]);
 
   return (
     <CallContext.Provider

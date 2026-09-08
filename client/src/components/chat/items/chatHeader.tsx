@@ -7,12 +7,11 @@ import {
   PhoneIcon,
   VideoIcon,
   ArrowLeft,
-  Search,
-  X,
   Bell,
   BellOff,
 } from "lucide-react";
 import { useSocket } from "@/context/SocketContext";
+import { useCall } from "@/context/CallContext";
 import Link from "next/link";
 import {
   Dialog,
@@ -38,10 +37,10 @@ const ChatHeader: React.FC<ChatHeaderParams> = ({ conversationId, onBack }) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showInfoDialog, setShowInfoDialog] = useState(false);
-  const [showCallModal, setShowCallModal] = useState<"voice" | "video" | null>(null);
   const [isMuted, setIsMuted] = useState(false);
 
   const { isUserOnline, checkPresence } = useSocket();
+  const { startCall, callState } = useCall();
 
   useEffect(() => {
     let isMounted = true;
@@ -72,6 +71,17 @@ const ChatHeader: React.FC<ChatHeaderParams> = ({ conversationId, onBack }) => {
   }, [conversationId, checkPresence]);
 
   const isOnline = otherUser?.id ? isUserOnline(otherUser.id) : false;
+  const isCallActive = callState !== "idle";
+
+  const handleVoiceCall = () => {
+    if (!otherUser?.id || isCallActive) return;
+    startCall(otherUser.id, otherUser.username, conversationId, "audio");
+  };
+
+  const handleVideoCall = () => {
+    if (!otherUser?.id || isCallActive) return;
+    startCall(otherUser.id, otherUser.username, conversationId, "video");
+  };
 
   if (loading) {
     return (
@@ -166,17 +176,19 @@ const ChatHeader: React.FC<ChatHeaderParams> = ({ conversationId, onBack }) => {
         <div className="flex items-center gap-1 text-muted-foreground">
           <button
             type="button"
-            onClick={() => setShowCallModal("voice")}
-            className="p-2 rounded-xl hover:bg-muted/80 hover:text-foreground transition-colors"
-            title="Start Audio Call"
+            onClick={handleVoiceCall}
+            disabled={isCallActive || !otherUser?.id}
+            className="p-2 rounded-xl hover:bg-muted/80 hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            title={isCallActive ? "Call in progress" : "Start Audio Call"}
           >
             <PhoneIcon className="w-4 h-4" />
           </button>
           <button
             type="button"
-            onClick={() => setShowCallModal("video")}
-            className="p-2 rounded-xl hover:bg-muted/80 hover:text-foreground transition-colors"
-            title="Start Video Call"
+            onClick={handleVideoCall}
+            disabled={isCallActive || !otherUser?.id}
+            className="p-2 rounded-xl hover:bg-muted/80 hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            title={isCallActive ? "Call in progress" : "Start Video Call"}
           >
             <VideoIcon className="w-4 h-4" />
           </button>
@@ -191,7 +203,7 @@ const ChatHeader: React.FC<ChatHeaderParams> = ({ conversationId, onBack }) => {
         </div>
       </div>
 
-      {/* Conversation Info Sheet / Dialog */}
+      {/* Conversation Info Dialog */}
       <Dialog open={showInfoDialog} onOpenChange={setShowInfoDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -219,9 +231,10 @@ const ChatHeader: React.FC<ChatHeaderParams> = ({ conversationId, onBack }) => {
               <Button
                 variant="outline"
                 className="flex-1 rounded-xl"
+                disabled={isCallActive || !otherUser?.id}
                 onClick={() => {
                   setShowInfoDialog(false);
-                  setShowCallModal("voice");
+                  handleVoiceCall();
                 }}
               >
                 <PhoneIcon className="w-4 h-4 mr-2 text-emerald-500" />
@@ -230,9 +243,10 @@ const ChatHeader: React.FC<ChatHeaderParams> = ({ conversationId, onBack }) => {
               <Button
                 variant="outline"
                 className="flex-1 rounded-xl"
+                disabled={isCallActive || !otherUser?.id}
                 onClick={() => {
                   setShowInfoDialog(false);
-                  setShowCallModal("video");
+                  handleVideoCall();
                 }}
               >
                 <VideoIcon className="w-4 h-4 mr-2 text-sky-500" />
@@ -268,36 +282,6 @@ const ChatHeader: React.FC<ChatHeaderParams> = ({ conversationId, onBack }) => {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Calling Simulation Modal */}
-      {showCallModal && (
-        <Dialog open={Boolean(showCallModal)} onOpenChange={() => setShowCallModal(null)}>
-          <DialogContent className="sm:max-w-sm text-center p-6">
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center text-primary text-2xl font-bold animate-pulse">
-                {showCallModal === "video" ? (
-                  <VideoIcon className="w-8 h-8" />
-                ) : (
-                  <PhoneIcon className="w-8 h-8" />
-                )}
-              </div>
-              <div>
-                <h4 className="font-bold text-base">Calling {otherUser.username}...</h4>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Connecting {showCallModal} session
-                </p>
-              </div>
-              <Button
-                variant="destructive"
-                className="rounded-full px-6 mt-2"
-                onClick={() => setShowCallModal(null)}
-              >
-                End Call
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
     </>
   );
 };
