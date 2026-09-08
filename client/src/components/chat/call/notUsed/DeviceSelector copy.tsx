@@ -14,7 +14,6 @@ interface DeviceSelectorProps {
   /** Show/hide the popover */
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  triggerRef?: React.RefObject<HTMLElement | null>;
 }
 
 const kindIcon: Record<DeviceKind, React.ReactNode> = {
@@ -40,7 +39,6 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
   onSelect,
   open,
   onOpenChange,
-  triggerRef,
 }) => {
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const ref = useRef<HTMLDivElement>(null);
@@ -65,25 +63,14 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
   // Close on outside click
   useEffect(() => {
     if (!open) return;
-    const handlePointerDown = (e: MouseEvent | TouchEvent) => {
-      const target = e.target as Node;
-
-      // Ignore click if it's inside the popover OR inside the trigger button
-      if (
-        ref.current?.contains(target) ||
-        triggerRef?.current?.contains(target)
-      ) {
-        return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onOpenChange(false);
       }
-
-      onOpenChange(false);
     };
-
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-    };
-  }, [open, onOpenChange, triggerRef]);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open, onOpenChange]);
 
   if (!open) return null;
 
@@ -138,3 +125,4 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
     </div>
   );
 };
+

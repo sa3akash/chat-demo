@@ -17,7 +17,7 @@ import {
 import { SpeakingIndicator } from "./SpeakingIndicator";
 import { VideoTile } from "./VideoTile";
 import { ControlButton } from "./ControlButton";
-import { DeviceControlButton } from "./DeviceSelector";
+import { DeviceControlButton } from "./DeviceControlButton";
 
 interface VideoCallLayoutProps {
   // Call info

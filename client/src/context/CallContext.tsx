@@ -1,21 +1,21 @@
-/* eslint-disable react-hooks/immutability */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useEffect, useState } from "react";
 import { useSocket } from "./SocketContext";
 
 // ── Sub-hooks ──────────────────────────────────────────────────────────────
-import { CallContext }        from "./call/context";
-import { useCallRefs }        from "./call/useCallRefs";
-import { useMediaStream }     from "./call/useMediaStream";
-import { useRemoteState }     from "./call/useRemoteState";
-import { usePeerConnection }  from "./call/usePeerConnection";
-import { useCallSignaling }   from "./call/useCallSignaling";
-import { useMediaControls }   from "./call/useMediaControls";
-import { useCallActions }     from "./call/useCallActions";
+import { CallContext } from "./call/context";
+import { useCallRefs } from "./call/useCallRefs";
+import { useMediaStream } from "./call/useMediaStream";
+import { useRemoteState } from "./call/useRemoteState";
+import { usePeerConnection } from "./call/usePeerConnection";
+import { useCallSignaling } from "./call/useCallSignaling";
+import { useMediaControls } from "./call/useMediaControls";
+import { useCallActions } from "./call/useCallActions";
 
 // Re-export the hook and types so consumers only import from this file
-export { useCall }  from "./call/context";
+export { useCall } from "./call/context";
 export type { CallState, CallType } from "./call/types";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -25,27 +25,49 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
   const { emit, subscribe } = useSocket();
 
   // ── Core state ─────────────────────────────────────────────────────────────
-  const [callState, setCallState]                     = useState<any>("idle");
-  const [callType, setCallType]                       = useState<any>("audio");
-  const [partner, setPartner]                         = useState<{ id: string; name: string } | null>(null);
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
-  const [isMicMuted, setIsMicMuted]                   = useState(false);
-  const [isCameraOff, setIsCameraOff]                 = useState(false);
-  const [isScreenSharing, setIsScreenSharing]         = useState(false);
-  const [localStream, setLocalStream]                 = useState<MediaStream | null>(null);
-  const [remoteStream, setRemoteStream]               = useState<MediaStream | null>(null);
-  const [screenStream, setScreenStream]               = useState<MediaStream | null>(null);
-  const [activeAudioInputId, setActiveAudioInputId]   = useState<string | null>(null);
-  const [activeAudioOutputId, setActiveAudioOutputId] = useState<string | null>(null);
-  const [activeVideoInputId, setActiveVideoInputId]   = useState<string | null>(null);
+  const [callState, setCallState] = useState<any>("idle");
+  const [callType, setCallType] = useState<any>("audio");
+  const [partner, setPartner] = useState<{ id: string; name: string } | null>(
+    null,
+  );
+  const [activeConversationId, setActiveConversationId] = useState<
+    string | null
+  >(null);
+  const [isMicMuted, setIsMicMuted] = useState(false);
+  const [isCameraOff, setIsCameraOff] = useState(false);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
+  const [activeAudioInputId, setActiveAudioInputId] = useState<string | null>(
+    null,
+  );
+  const [activeAudioOutputId, setActiveAudioOutputId] = useState<string | null>(
+    null,
+  );
+  const [activeVideoInputId, setActiveVideoInputId] = useState<string | null>(
+    null,
+  );
 
   // ── Shared refs ────────────────────────────────────────────────────────────
   const refs = useCallRefs();
 
   // Keep stable refs in sync with state
-  useEffect(() => { refs.callStateRef.current = callState; },            [callState, refs.callStateRef]);
-  useEffect(() => { refs.partnerRef.current = partner; },                [partner, refs.partnerRef]);
-  useEffect(() => { refs.activeConvIdRef.current = activeConversationId; }, [activeConversationId, refs.activeConvIdRef]);
+  useEffect(() => {
+    queueMicrotask(()=>{
+      refs.callStateRef.current = callState;
+    })
+  }, [callState, refs.callStateRef]);
+  useEffect(() => {
+    queueMicrotask(()=>{
+      refs.partnerRef.current = partner;
+    })
+  }, [partner, refs.partnerRef]);
+  useEffect(() => {
+    queueMicrotask(()=>{
+      refs.activeConvIdRef.current = activeConversationId;
+    })
+  }, [activeConversationId, refs.activeConvIdRef]);
 
   // ── Volume analysers + getUserMedia ────────────────────────────────────────
   const { localVolume, remoteVolume, getMedia } = useMediaStream({
@@ -79,26 +101,33 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
     setIsScreenSharing,
     setIsRemoteMuted,
     setIsRemoteAudioMuted,
-    setLocalVolume: () => {},  // managed by useMediaStream — no-op here
+    setLocalVolume: () => {}, // managed by useMediaStream — no-op here
     setRemoteVolume: () => {}, // managed by useMediaStream — no-op here
     setScreenStream,
   });
 
   // ── Screen share (stopScreenShare must be stable before startScreenShare) ──
-  const { toggleMic, toggleCamera, switchAudioInput, switchAudioOutput, switchCamera, startScreenShare, stopScreenShare } =
-    useMediaControls({
-      refs,
-      emit,
-      setLocalStream,
-      setScreenStream,
-      setIsMicMuted,
-      setIsCameraOff,
-      setIsScreenSharing,
-      setActiveAudioInputId,
-      setActiveAudioOutputId,
-      setActiveVideoInputId,
-      stopScreenShareFn: async () => stopScreenShare(),
-    });
+  const {
+    toggleMic,
+    toggleCamera,
+    switchAudioInput,
+    switchAudioOutput,
+    switchCamera,
+    startScreenShare,
+    stopScreenShare,
+  } = useMediaControls({
+    refs,
+    emit,
+    setLocalStream,
+    setScreenStream,
+    setIsMicMuted,
+    setIsCameraOff,
+    setIsScreenSharing,
+    setActiveAudioInputId,
+    setActiveAudioOutputId,
+    setActiveVideoInputId,
+    stopScreenShareFn: async () => stopScreenShare(),
+  });
 
   // ── Call lifecycle actions ─────────────────────────────────────────────────
   const { startCall, acceptCall, rejectCall, endCall } = useCallActions({

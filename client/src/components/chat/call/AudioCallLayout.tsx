@@ -5,7 +5,7 @@ import { PhoneOff, Mic, MicOff, Volume2 } from "lucide-react";
 import { VolumeRing } from "./VolumeRing";
 import { SpeakingIndicator } from "./SpeakingIndicator";
 import { ControlButton } from "./ControlButton";
-import { DeviceControlButton } from "./DeviceSelector";
+import { DeviceControlButton } from "./DeviceControlButton";
 
 interface AudioCallLayoutProps {
   partnerName: string;
@@ -52,10 +52,10 @@ export const AudioCallLayout: React.FC<AudioCallLayoutProps> = ({
   const ambientOpacity = 0.05 + Math.max(localVolume, remoteVolume) * 0.2;
 
   return (
-    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950">
+    <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-slate-950 via-indigo-950 to-slate-950">
       <div className="relative w-full max-w-sm mx-4 rounded-3xl overflow-hidden shadow-2xl border border-white/5">
         {/* Ambient layers */}
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/90 via-slate-900/90 to-purple-950/90" />
+        <div className="absolute inset-0 bg-linear-to-br from-indigo-950/90 via-slate-900/90 to-purple-950/90" />
         <div
           className="absolute inset-0 transition-opacity duration-150"
           style={{
@@ -106,10 +106,12 @@ export const AudioCallLayout: React.FC<AudioCallLayoutProps> = ({
             )}
             {/* Avatar */}
             <div
-              className="w-32 h-32 rounded-full bg-gradient-to-br from-indigo-500 to-purple-700 flex items-center justify-center text-white font-bold text-4xl shadow-2xl z-10 border-4 border-white/10 transition-transform duration-75"
+              className="w-32 h-32 rounded-full bg-linear-to-br from-indigo-500 to-purple-700 flex items-center justify-center text-white font-bold text-4xl shadow-2xl z-10 border-4 border-white/10 transition-transform duration-75"
               style={
                 isConnected
-                  ? { transform: `scale(${1 + Math.max(localVolume, remoteVolume) * 0.06})` }
+                  ? {
+                      transform: `scale(${1 + Math.max(localVolume, remoteVolume) * 0.06})`,
+                    }
                   : {}
               }
             >
@@ -139,7 +141,9 @@ export const AudioCallLayout: React.FC<AudioCallLayoutProps> = ({
           {isConnected && isMicMuted && (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/20 border border-red-500/30">
               <MicOff className="w-3.5 h-3.5 text-red-400" />
-              <span className="text-red-300 text-xs font-medium">Microphone muted</span>
+              <span className="text-red-300 text-xs font-medium">
+                Microphone muted
+              </span>
             </div>
           )}
 
@@ -147,7 +151,13 @@ export const AudioCallLayout: React.FC<AudioCallLayoutProps> = ({
           <div className="flex items-center gap-4 mt-2">
             {isConnected && (
               <DeviceControlButton
-                icon={isMicMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                icon={
+                  isMicMuted ? (
+                    <MicOff className="w-5 h-5" />
+                  ) : (
+                    <Mic className="w-5 h-5" />
+                  )
+                }
                 label={isMicMuted ? "Unmute" : "Mute"}
                 active={!isMicMuted}
                 onToggle={toggleMic}

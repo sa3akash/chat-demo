@@ -4,7 +4,10 @@ import React, { useEffect, useState, useMemo } from "react";
 import { IConversation } from "@/types/conversation";
 import SingleConversation from "./items/SingleConversation";
 import { useSocket } from "@/context/SocketContext";
-import { ConversationUpdatePayload, ReceiptReadPayload } from "@/types/socket.client";
+import {
+  ConversationUpdatePayload,
+  ReceiptReadPayload,
+} from "@/types/socket.client";
 
 interface ConversationListProps {
   initialConversations: IConversation[];
@@ -17,13 +20,18 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   activeConversationId,
   searchQuery = "",
 }) => {
-  const [conversations, setConversations] = useState<IConversation[]>(initialConversations);
-  const [activeTab, setActiveTab] = useState<"all" | "unread" | "direct" | "groups">("all");
+  const [conversations, setConversations] =
+    useState<IConversation[]>(initialConversations);
+  const [activeTab, setActiveTab] = useState<
+    "all" | "unread" | "direct" | "groups"
+  >("all");
   const { isUserOnline, checkPresence, subscribe } = useSocket();
 
   // Sync with initial server props
   useEffect(() => {
-    setConversations(initialConversations);
+    queueMicrotask(() => {
+      setConversations(initialConversations);
+    });
   }, [initialConversations]);
 
   // Check presence of all conversation participants on mount
@@ -56,8 +64,8 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               data.unreadCount !== undefined
                 ? data.unreadCount
                 : isActive
-                ? 0
-                : existing.unreadCount + 1,
+                  ? 0
+                  : existing.unreadCount + 1,
             latestMessage: data.latestMessage
               ? {
                   id: data.latestMessage.id,
@@ -81,7 +89,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           next.splice(index, 1);
           return [updated, ...next];
         });
-      }
+      },
     );
 
     // Handle new conversations created by another user (or ourselves in another tab)
@@ -94,14 +102,14 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           if (prev.some((c) => c.id === data.conversation.id)) return prev;
           return [data.conversation, ...prev];
         });
-      }
+      },
     );
 
     const unsubRead = subscribe("receipt:read", (data: ReceiptReadPayload) => {
       setConversations((prev) =>
         prev.map((c) =>
-          c.id === data.conversationId ? { ...c, unreadCount: 0 } : c
-        )
+          c.id === data.conversationId ? { ...c, unreadCount: 0 } : c,
+        ),
       );
     });
 
@@ -163,7 +171,9 @@ export const ConversationList: React.FC<ConversationListProps> = ({
       <div className="flex flex-col gap-1 overflow-y-auto flex-1 pr-0.5">
         {filteredConversations.length === 0 ? (
           <div className="text-center p-8 text-xs text-muted-foreground">
-            {searchQuery ? "No conversations match your search" : "No chats yet"}
+            {searchQuery
+              ? "No conversations match your search"
+              : "No chats yet"}
           </div>
         ) : (
           filteredConversations.map((conversation) => (

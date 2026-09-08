@@ -63,7 +63,9 @@ export const ChatFooter: React.FC<ChatFooterProps> = ({
   // Recording timer
   useEffect(() => {
     if (isRecording) {
-      setRecordingSeconds(0);
+      queueMicrotask(()=>{
+        setRecordingSeconds(0);
+      })
       recordingTimerRef.current = setInterval(() => {
         setRecordingSeconds((prev) => prev + 1);
       }, 1000);
@@ -272,7 +274,7 @@ export const ChatFooter: React.FC<ChatFooterProps> = ({
               <FileText className="w-6 h-6 text-primary" />
             )}
             <div className="flex flex-col">
-              <span className="font-medium truncate max-w-[160px]">{pendingAttachment.name}</span>
+              <span className="font-medium truncate max-w-40">{pendingAttachment.name}</span>
               {pendingAttachment.uploading && (
                 <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                   <Loader2 className="w-2.5 h-2.5 animate-spin" /> Uploading…
@@ -333,7 +335,7 @@ export const ChatFooter: React.FC<ChatFooterProps> = ({
                 <Paperclip className="w-5 h-5" />
               </Button>
               {showAttachmentMenu && (
-                <div className="absolute bottom-full mb-2 left-0 flex flex-col gap-1 bg-popover/95 backdrop-blur border border-border shadow-xl rounded-2xl p-1.5 min-w-[140px] z-30 animate-in fade-in zoom-in-95">
+                <div className="absolute bottom-full mb-2 left-0 flex flex-col gap-1 bg-popover/95 backdrop-blur border border-border shadow-xl rounded-2xl p-1.5 min-w-35 z-30 animate-in fade-in zoom-in-95">
                   <button type="button" onClick={() => imageInputRef.current?.click()}
                     className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-xl hover:bg-muted text-foreground transition-colors">
                     <ImageIcon className="w-4 h-4 text-emerald-500" /> Photo / Image

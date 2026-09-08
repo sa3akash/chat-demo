@@ -28,7 +28,7 @@ export const WaveformPlayer: React.FC<WaveformPlayerProps> = ({
 
   return (
     <div
-      className={`flex items-center gap-2.5 py-1 px-1 rounded-2xl min-w-[220px] max-w-[320px] ${
+      className={`flex items-center gap-2.5 py-1 px-1 rounded-2xl min-w-55 max-w-[320px] ${
         isMine ? "text-primary-foreground" : "text-foreground"
       }`}
     >

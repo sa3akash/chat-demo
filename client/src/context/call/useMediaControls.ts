@@ -8,7 +8,7 @@ import type { CallRefs } from "./useCallRefs";
 
 // Helper: emit the current local mic/camera state to the remote peer
 function emitMediaState(
-  emit: (event: string, payload: any) => void,
+  emit: EmitFn,
   refs: Pick<CallRefs, "localStreamRef" | "partnerRef" | "activeConvIdRef">,
   overrides: Partial<{ isMicMuted: boolean; isCameraOff: boolean }> = {},
 ) {

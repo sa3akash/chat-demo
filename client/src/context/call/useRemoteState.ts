@@ -20,14 +20,23 @@ interface UseRemoteStateOptions {
  * by the call:media-state socket signal in useCallSignaling — these track-level
  * listeners act as a secondary fallback.
  */
-export function useRemoteState({ refs, remoteStream, callState }: UseRemoteStateOptions) {
+export function useRemoteState({
+  refs,
+  remoteStream,
+  callState,
+}: UseRemoteStateOptions) {
   const [isRemoteMuted, setIsRemoteMuted] = useState(false);
   const [isRemoteAudioMuted, setIsRemoteAudioMuted] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
 
   // ── Remote video track mute detection ────────────────────────────────────
   useEffect(() => {
-    if (!remoteStream) { setIsRemoteMuted(false); return; }
+    if (!remoteStream) {
+      queueMicrotask(() => {
+        setIsRemoteMuted(false);
+      });
+      return;
+    }
 
     const check = () => {
       const hasVideo = remoteStream
@@ -51,7 +60,12 @@ export function useRemoteState({ refs, remoteStream, callState }: UseRemoteState
 
   // ── Remote audio track mute detection ────────────────────────────────────
   useEffect(() => {
-    if (!remoteStream) { setIsRemoteAudioMuted(false); return; }
+    if (!remoteStream) {
+      queueMicrotask(() => {
+        setIsRemoteAudioMuted(false);
+      });
+      return;
+    }
 
     const check = () => {
       const hasAudio = remoteStream
@@ -76,16 +90,24 @@ export function useRemoteState({ refs, remoteStream, callState }: UseRemoteState
   // ── Call duration counter ─────────────────────────────────────────────────
   useEffect(() => {
     if (callState === "connected") {
-      setCallDuration(0);
+      queueMicrotask(() => {
+        setCallDuration(0);
+      });
       refs.durationTimerRef.current = setInterval(
         () => setCallDuration((s) => s + 1),
         1000,
       );
     } else {
-      if (refs.durationTimerRef.current) clearInterval(refs.durationTimerRef.current);
-      setCallDuration(0);
+      if (refs.durationTimerRef.current)
+        clearInterval(refs.durationTimerRef.current);
+      queueMicrotask(() => {
+        setCallDuration(0);
+      });
     }
-    return () => { if (refs.durationTimerRef.current) clearInterval(refs.durationTimerRef.current); };
+    return () => {
+      if (refs.durationTimerRef.current)
+        clearInterval(refs.durationTimerRef.current);
+    };
   }, [callState, refs.durationTimerRef]);
 
   return {

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/immutability */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -78,6 +79,11 @@ export function useMediaStream({
 
   // ── Local volume analyser ─────────────────────────────────────────────────
   useEffect(() => {
+    queueMicrotask(() => {
+      refs.localVolCleanupRef?.current?.();
+      refs.localVolCleanupRef.current = null;
+    });
+
     if (!localStream) {
       queueMicrotask(() => setLocalVolume(0));
       return;
@@ -97,6 +103,11 @@ export function useMediaStream({
 
   // ── Remote volume analyser ────────────────────────────────────────────────
   useEffect(() => {
+    queueMicrotask(() => {
+      refs.remoteVolCleanupRef?.current?.();
+      refs.remoteVolCleanupRef.current = null;
+    });
+
     if (!remoteStream || callState !== "connected") {
       queueMicrotask(() => setRemoteVolume(0));
       return;
