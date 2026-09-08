@@ -19,10 +19,10 @@ export const IncomingCallScreen: React.FC<IncomingCallScreenProps> = ({
   onAccept,
   onDecline,
 }) => (
-  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-xl animate-in fade-in duration-300">
+  <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/70 backdrop-blur-xl animate-in fade-in duration-300">
     <div className="relative w-full max-w-sm mx-4 rounded-3xl overflow-hidden shadow-2xl">
-      <div className="absolute inset-0 bg-gradient-to-br from-indigo-950 via-slate-900 to-purple-950" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#6366f140,_transparent_60%)]" />
+      <div className="absolute inset-0 bg-linear-to-br from-indigo-950 via-slate-900 to-purple-950" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,#6366f140,transparent_60%)]" />
 
       <div className="relative z-10 flex flex-col items-center gap-6 p-8">
         <span className="px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white/80 text-xs font-semibold tracking-widest uppercase">
@@ -32,7 +32,7 @@ export const IncomingCallScreen: React.FC<IncomingCallScreenProps> = ({
         {/* Avatar with ring pulse */}
         <div className="relative flex items-center justify-center" style={{ width: 120, height: 120 }}>
           <VolumeRing volume={0.35} color="#818cf8" size={120} rings={2} />
-          <div className="w-28 h-28 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-3xl shadow-xl z-10 border-4 border-white/20">
+          <div className="w-28 h-28 rounded-full bg-linear-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-3xl shadow-xl z-10 border-4 border-white/20">
             {partnerInitials}
           </div>
         </div>
