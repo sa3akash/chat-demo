@@ -330,6 +330,7 @@ export function useChat(conversationId: string) {
         type,
         tempId,
         replyToId: currentReply?.id || undefined,
+        attachments,
       });
 
       // Clear typing state immediately

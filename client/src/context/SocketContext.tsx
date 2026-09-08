@@ -37,6 +37,7 @@ interface SocketContextType {
     type?: string;
     tempId?: string;
     replyToId?: string;
+    attachments?: { url: string; name: string; mimeType: string }[];
   }) => void;
   sendTyping: (conversationId: string, isTyping: boolean) => void;
   markAsRead: (conversationId: string, messageId?: string) => void;
@@ -150,12 +151,14 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       type = "text",
       tempId,
       replyToId,
+      attachments,
     }: {
       conversationId: string;
       content: string;
       type?: string;
       tempId?: string;
       replyToId?: string;
+      attachments?: { url: string; name: string; mimeType: string }[];
     }) => {
       emit("chat:send", {
         conversationId,
@@ -163,6 +166,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         type,
         tempId: tempId || `temp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
         replyToId,
+        attachments: attachments || [],
       });
     },
     [emit]

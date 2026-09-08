@@ -1,5 +1,5 @@
 import Redis from "ioredis";
-import { WS } from "../socketStore";
+import { WS } from "../demo/socketStore";
 import type { MessageSchema } from "../types";
 
 // Unique identifier to prevent processing our own Redis pub/sub broadcasts

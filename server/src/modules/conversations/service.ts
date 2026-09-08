@@ -1,6 +1,6 @@
-import { BadRequestError } from "@/lib/customError";
+import { BadRequestError, AppError } from "@/lib/customError";
 import { conversationMembers, conversations, db, messages, users } from "@/db";
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import type { ConversationModel } from "./model";
 
 export abstract class Conversation {
@@ -66,6 +66,7 @@ export abstract class Conversation {
         .insert(conversations)
         .values({
           type: "group",
+          title: `Group Chat`,
         })
         .returning();
 
@@ -166,7 +167,7 @@ export abstract class Conversation {
 
       return {
         ...conv,
-        title: isDirect ? (otherUser?.username ?? "Unknown User") : conv.title,
+        title: isDirect ? (otherUser?.username ?? "Unknown User") : (conv.title ?? "Group Chat"),
         iconUrl: isDirect ? null : conv.iconUrl,
         otherUser: isDirect ? otherUser : null,
       };
@@ -201,5 +202,181 @@ export abstract class Conversation {
       username: otherUser.user?.username!,
       email: otherUser.user?.email!,
     };
+  }
+
+  /** Get full group conversation details including all members with their roles */
+  static async getGroupDetails(conversationId: string, userId: string) {
+    const conv = await db
+      .select()
+      .from(conversations)
+      .where(eq(conversations.id, conversationId))
+      .limit(1);
+
+    if (!conv.length) throw new BadRequestError("Conversation not found");
+    if (conv[0].type !== "group") throw new BadRequestError("Not a group conversation");
+
+    // Verify requester is a member
+    const myMembership = await db
+      .select()
+      .from(conversationMembers)
+      .where(
+        and(
+          eq(conversationMembers.conversationId, conversationId),
+          eq(conversationMembers.userId, userId)
+        )
+      )
+      .limit(1);
+
+    if (!myMembership.length) throw new AppError("Not a member of this conversation", 403);
+
+    // Fetch all members with user info
+    const memberRows = await db
+      .select({
+        userId: conversationMembers.userId,
+        role: conversationMembers.role,
+        joinedAt: conversationMembers.createdAt,
+        id: users.id,
+        username: users.username,
+        email: users.email,
+      })
+      .from(conversationMembers)
+      .leftJoin(users, eq(conversationMembers.userId, users.id))
+      .where(eq(conversationMembers.conversationId, conversationId));
+
+    return {
+      id: conv[0].id,
+      title: conv[0].title ?? "Group Chat",
+      iconUrl: conv[0].iconUrl,
+      createdAt: conv[0].createdAt,
+      myRole: myMembership[0].role,
+      members: memberRows.map((m) => ({
+        id: m.id!,
+        username: m.username!,
+        email: m.email!,
+        role: m.role,
+        joinedAt: m.joinedAt,
+      })),
+    };
+  }
+
+  /** Update group name / icon (admin only) */
+  static async updateGroup(
+    conversationId: string,
+    userId: string,
+    data: { title?: string; iconUrl?: string }
+  ) {
+    const myMembership = await db
+      .select({ role: conversationMembers.role })
+      .from(conversationMembers)
+      .where(
+        and(
+          eq(conversationMembers.conversationId, conversationId),
+          eq(conversationMembers.userId, userId)
+        )
+      )
+      .limit(1);
+
+    if (!myMembership.length) throw new AppError("Not a member", 403);
+    if (myMembership[0].role !== "admin") throw new AppError("Admin only", 403);
+
+    const [updated] = await db
+      .update(conversations)
+      .set({
+        ...(data.title !== undefined && { title: data.title }),
+        ...(data.iconUrl !== undefined && { iconUrl: data.iconUrl }),
+      })
+      .where(eq(conversations.id, conversationId))
+      .returning();
+
+    return updated;
+  }
+
+  /** Add members to a group (admin only) */
+  static async addMembers(
+    conversationId: string,
+    userId: string,
+    newMemberIds: string[]
+  ) {
+    const myMembership = await db
+      .select({ role: conversationMembers.role })
+      .from(conversationMembers)
+      .where(
+        and(
+          eq(conversationMembers.conversationId, conversationId),
+          eq(conversationMembers.userId, userId)
+        )
+      )
+      .limit(1);
+
+    if (!myMembership.length) throw new AppError("Not a member", 403);
+    if (myMembership[0].role !== "admin") throw new AppError("Admin only", 403);
+
+    // Skip existing members
+    const existing = await db
+      .select({ userId: conversationMembers.userId })
+      .from(conversationMembers)
+      .where(
+        and(
+          eq(conversationMembers.conversationId, conversationId),
+          inArray(conversationMembers.userId, newMemberIds)
+        )
+      );
+
+    const existingIds = new Set(existing.map((e) => e.userId));
+    const toAdd = newMemberIds.filter((id) => !existingIds.has(id));
+
+    if (toAdd.length === 0) return { added: [] };
+
+    await db.insert(conversationMembers).values(
+      toAdd.map((memberId) => ({
+        conversationId,
+        userId: memberId,
+        role: "member",
+      }))
+    );
+
+    // Return the newly added user info
+    const addedUsers = await db
+      .select({ id: users.id, username: users.username, email: users.email })
+      .from(users)
+      .where(inArray(users.id, toAdd));
+
+    return { added: addedUsers };
+  }
+
+  /** Remove a member from a group (admin only, or self-remove) */
+  static async removeMember(
+    conversationId: string,
+    requesterId: string,
+    targetUserId: string
+  ) {
+    const myMembership = await db
+      .select({ role: conversationMembers.role })
+      .from(conversationMembers)
+      .where(
+        and(
+          eq(conversationMembers.conversationId, conversationId),
+          eq(conversationMembers.userId, requesterId)
+        )
+      )
+      .limit(1);
+
+    if (!myMembership.length) throw new AppError("Not a member", 403);
+
+    // Can only remove others if admin, or removing self
+    if (requesterId !== targetUserId && myMembership[0].role !== "admin") {
+      throw new AppError("Admin only", 403);
+    }
+
+    await db
+      .delete(conversationMembers)
+      .where(
+        and(
+          eq(conversationMembers.conversationId, conversationId),
+          eq(conversationMembers.userId, targetUserId)
+        )
+      );
+
+    return { removed: targetUserId };
   }
 }

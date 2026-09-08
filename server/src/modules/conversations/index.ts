@@ -5,7 +5,7 @@ import { ConversationModel } from "./model";
 import { table, db, conversationMembers, users } from "@/db";
 import { createInsertSchema, createSelectSchema } from "drizzle-typebox";
 import { t } from "elysia";
-import { redisClient } from "../websocket/gatway";
+import { redisClient } from "../websocket/redis";
 import { eq, inArray } from "drizzle-orm";
 
 const _conversatonSchema = createInsertSchema(table.conversations);

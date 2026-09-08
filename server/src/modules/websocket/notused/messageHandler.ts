@@ -1,6 +1,6 @@
 import Redis from "ioredis";
-import type { MessageSchema} from "../types";
-import { WS } from "../socketStore";
+import { WS } from "../demo/socketStore";
+import type { MessageSchema } from "../types";
 
 const pub = new Redis({ host: "localhost", port: 6379 });
 

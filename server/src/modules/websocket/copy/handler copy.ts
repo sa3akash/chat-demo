@@ -1,5 +1,5 @@
 import { logger } from "@/lib/logger";
-import { broadcastToLocalUser, pub, userSockets, WS } from "../socketStore";
+import { broadcastToLocalUser, pub, userSockets, WS } from "../demo/socketStore";
 import { MessageSchema } from "../types";
 
 /**

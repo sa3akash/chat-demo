@@ -1,6 +1,5 @@
 import type { Elysia } from "elysia";
-import { MessageSchema, PresenceStatus } from "./types";
-import { logger } from "@/lib/logger";
+import { MessageSchema } from "../types";
 
 // Extract Elysia internal WS type
 export type WS = Parameters<

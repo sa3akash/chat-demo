@@ -8,6 +8,41 @@ import React, {
   useRef,
   useState,
 } from "react";
+
+/** Analyse a MediaStream and return 0.0–1.0 volume via a cleanup-returning setup */
+function createVolumeAnalyser(
+  stream: MediaStream,
+  onVolume: (v: number) => void
+): () => void {
+  let rafId: number;
+  let ctx: AudioContext | null = null;
+  try {
+    ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const source = ctx.createMediaStreamSource(stream);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.5;
+    source.connect(analyser);
+    const data = new Uint8Array(analyser.frequencyBinCount);
+
+    const tick = () => {
+      analyser.getByteFrequencyData(data);
+      // RMS-like average
+      const sum = data.reduce((acc, v) => acc + v * v, 0);
+      const rms = Math.sqrt(sum / data.length);
+      onVolume(Math.min(rms / 128, 1)); // normalise to 0-1
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+  } catch {
+    // AudioContext not available, keep volume at 0
+  }
+
+  return () => {
+    cancelAnimationFrame(rafId);
+    ctx?.close();
+  };
+}
 import { useSocket } from "./SocketContext";
 import { useAuth } from "./AuthContext";
 import {
@@ -33,6 +68,10 @@ interface CallContextType {
   isCameraOff: boolean;
   localStream: MediaStream | null;
   remoteStream: MediaStream | null;
+  /** 0.0 – 1.0: current microphone volume (updated ~60fps) */
+  localVolume: number;
+  /** 0.0 – 1.0: current remote audio volume (updated ~60fps) */
+  remoteVolume: number;
   startCall: (
     recipientId: string,
     recipientName: string,
@@ -77,14 +116,48 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
 
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [localVolume, setLocalVolume] = useState(0);
+  const [remoteVolume, setRemoteVolume] = useState(0);
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const incomingOfferRef = useRef<any>(null);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const localAnalyserCleanupRef = useRef<(() => void) | null>(null);
+  const remoteAnalyserCleanupRef = useRef<(() => void) | null>(null);
   // Ref to avoid stale closure in socket event handler
   const callStateRef = useRef<CallState>("idle");
   useEffect(() => { callStateRef.current = callState; }, [callState]);
+
+  // Volume analyser: local microphone
+  useEffect(() => {
+    if (localStream && callState === "connected") {
+      localAnalyserCleanupRef.current?.();
+      localAnalyserCleanupRef.current = createVolumeAnalyser(localStream, setLocalVolume);
+    } else {
+      localAnalyserCleanupRef.current?.();
+      localAnalyserCleanupRef.current = null;
+      setLocalVolume(0);
+    }
+    return () => {
+      localAnalyserCleanupRef.current?.();
+    };
+  }, [localStream, callState]);
+
+  // Volume analyser: remote audio
+  useEffect(() => {
+    if (remoteStream && callState === "connected") {
+      remoteAnalyserCleanupRef.current?.();
+      remoteAnalyserCleanupRef.current = createVolumeAnalyser(remoteStream, setRemoteVolume);
+    } else {
+      remoteAnalyserCleanupRef.current?.();
+      remoteAnalyserCleanupRef.current = null;
+      setRemoteVolume(0);
+    }
+    return () => {
+      remoteAnalyserCleanupRef.current?.();
+    };
+  }, [remoteStream, callState]);
 
   // Call duration counter
   useEffect(() => {
@@ -374,6 +447,8 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         isCameraOff,
         localStream,
         remoteStream,
+        localVolume,
+        remoteVolume,
         startCall,
         acceptCall,
         rejectCall,

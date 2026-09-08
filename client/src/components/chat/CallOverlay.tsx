@@ -23,6 +23,8 @@ export const CallOverlay: React.FC = () => {
     isCameraOff,
     localStream,
     remoteStream,
+    localVolume,
+    remoteVolume,
     acceptCall,
     rejectCall,
     endCall,
@@ -107,11 +109,45 @@ export const CallOverlay: React.FC = () => {
               </div>
             </div>
           ) : (
-            /* Audio Avatar Pulse View */
+            /* Audio Avatar — idle pulse or volume-reactive rings */
             <div className="relative flex items-center justify-center my-6">
-              <div className="absolute w-36 h-36 rounded-full bg-primary/10 animate-ping" />
-              <div className="absolute w-48 h-48 rounded-full bg-primary/5 animate-pulse" />
-              <div className="w-28 h-28 rounded-full bg-primary/15 border-4 border-primary/30 flex items-center justify-center text-primary font-bold text-3xl shadow-xl z-10">
+              {callState === "connected" ? (
+                <>
+                  {/* Outermost ring: reacts to remote voice (person you're hearing) */}
+                  <div
+                    className="absolute rounded-full bg-primary/8 transition-all duration-75"
+                    style={{
+                      width: `${192 + remoteVolume * 72}px`,
+                      height: `${192 + remoteVolume * 72}px`,
+                      opacity: 0.12 + remoteVolume * 0.55,
+                    }}
+                  />
+                  {/* Middle ring: reacts to local mic (your voice) */}
+                  <div
+                    className="absolute rounded-full bg-primary/12 transition-all duration-75"
+                    style={{
+                      width: `${144 + localVolume * 56}px`,
+                      height: `${144 + localVolume * 56}px`,
+                      opacity: 0.18 + localVolume * 0.5,
+                    }}
+                  />
+                </>
+              ) : (
+                <>
+                  {/* Idle rings: gentle CSS pulse before call connects */}
+                  <div className="absolute w-52 h-52 rounded-full bg-primary/6 animate-pulse" />
+                  <div className="absolute w-40 h-40 rounded-full bg-primary/10 animate-ping [animation-duration:2s]" />
+                </>
+              )}
+              {/* Avatar circle */}
+              <div
+                className="w-28 h-28 rounded-full bg-primary/15 border-4 border-primary/30 flex items-center justify-center text-primary font-bold text-3xl shadow-xl z-10 transition-transform duration-100"
+                style={
+                  callState === "connected"
+                    ? { transform: `scale(${1 + Math.max(localVolume, remoteVolume) * 0.08})` }
+                    : undefined
+                }
+              >
                 {partnerInitials}
               </div>
             </div>

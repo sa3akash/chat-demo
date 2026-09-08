@@ -7,8 +7,12 @@ import { openapi } from "@elysia/openapi";
 import { authRoutes } from "./modules/auth";
 import { conversationRoutes } from "./modules/conversations";
 import { messagesRoutes } from "./modules/messages";
+import { uploadRoutes } from "./modules/upload";
 import { AppError } from "./lib/customError";
 import { cors } from "@elysia/cors";
+import { join } from "path";
+
+const UPLOADS_ROOT = join(process.cwd(), "uploads");
 
 const app = new Elysia()
   .error({
@@ -46,9 +50,27 @@ const app = new Elysia()
     }),
   )
 
+  // Static file serving for uploads (images, audio, videos, files)
+  .get("/uploads/*", async ({ params, set }: any) => {
+    const filePath = join(UPLOADS_ROOT, params["*"]);
+    const file = Bun.file(filePath);
+    const exists = await file.exists();
+    if (!exists) {
+      set.status = 404;
+      return { error: "File not found" };
+    }
+    return new Response(file, {
+      headers: {
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Content-Type": file.type || "application/octet-stream",
+      },
+    });
+  })
+
   .use(authRoutes)
   .use(conversationRoutes)
   .use(messagesRoutes)
+  .use(uploadRoutes)
   .get("/health", () => ({
     message: "OK",
     version: "1.0.0",
@@ -96,6 +118,7 @@ app.listen(4400, (server) => {
       logger.info(
         `🦊 Elysia is running at http://${server?.hostname}:${server?.port}/docs`,
       );
+      logger.info(`📁 Static files served from: ${UPLOADS_ROOT}`);
     })
     .catch((error) => {
       logger.error(error, "Database connection error");

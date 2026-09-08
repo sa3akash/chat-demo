@@ -1,9 +1,9 @@
-import Elysia, { t } from "elysia";
-import { messageSchema } from "../types";
-import { addUser, disconnectUser } from "../socketStore";
-import { flushOfflineQueue, messageHandler } from "../handler";
 import { logger } from "@/lib/logger";
 import { AuthPayload, tokenEngine } from "@/middlewares/auth";
+import Elysia, { t } from "elysia";
+import { addUser, disconnectUser } from "../demo/socketStore";
+import { flushOfflineQueue, messageHandler } from "../handler";
+import { messageSchema } from "../types";
 
 function verifyToken(token: string) {
   const result = tokenEngine.decrypt<AuthPayload>(token);
