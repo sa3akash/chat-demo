@@ -23,11 +23,14 @@ interface SocketContextType {
   onlineUserIds: Set<string>;
   isUserOnline: (userId: string) => boolean;
   checkPresence: (userIds: string[]) => Promise<void>;
-  emit: <K extends keyof ClientToServerEvents>(type: K, payload: ClientToServerEvents[K]) => void;
+  emit: <K extends keyof ClientToServerEvents>(
+    type: K,
+    payload: ClientToServerEvents[K],
+  ) => void;
   sendMessage: (type: string, payload: any) => void; // Backward compatibility
   subscribe: <K extends keyof ServerToClientEvents>(
     type: K | string,
-    handler: EventHandler<any>
+    handler: EventHandler<any>,
   ) => () => void;
   joinConversation: (conversationId: string) => void;
   leaveConversation: (conversationId: string) => void;
@@ -41,7 +44,11 @@ interface SocketContextType {
   }) => void;
   sendTyping: (conversationId: string, isTyping: boolean) => void;
   markAsRead: (conversationId: string, messageId?: string) => void;
-  sendReaction: (conversationId: string, messageId: string, emoji: string) => void;
+  sendReaction: (
+    conversationId: string,
+    messageId: string,
+    emoji: string,
+  ) => void;
   deleteMessage: (conversationId: string, messageId: string) => void;
 }
 
@@ -72,19 +79,16 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const token = user?.accessToken;
 
   // 1. Subscribe to event types
-  const subscribe = useCallback(
-    (type: string, handler: EventHandler) => {
-      if (!listenersRef.current.has(type)) {
-        listenersRef.current.set(type, new Set());
-      }
-      listenersRef.current.get(type)!.add(handler);
+  const subscribe = useCallback((type: string, handler: EventHandler) => {
+    if (!listenersRef.current.has(type)) {
+      listenersRef.current.set(type, new Set());
+    }
+    listenersRef.current.get(type)!.add(handler);
 
-      return () => {
-        listenersRef.current.get(type)?.delete(handler);
-      };
-    },
-    []
-  );
+    return () => {
+      listenersRef.current.get(type)?.delete(handler);
+    };
+  }, []);
 
   // 2. Dispatch incoming frames to subscribers
   const dispatchEvent = useCallback((type: string, payload: any) => {
@@ -101,27 +105,24 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   // 3. Emit frame to server or buffer if connecting
-  const emit = useCallback(
-    (type: string, payload: any) => {
-      const frame = JSON.stringify({ type, payload });
-      if (socketRef.current?.readyState === WebSocket.OPEN) {
-        socketRef.current.send(frame);
-      } else {
-        // Buffer critical events when temporarily disconnected
-        if (type !== "heartbeat" && type !== "typing:update") {
-          outgoingQueueRef.current.push(frame);
-        }
+  const emit = useCallback((type: string, payload: any) => {
+    const frame = JSON.stringify({ type, payload });
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(frame);
+    } else {
+      // Buffer critical events when temporarily disconnected
+      if (type !== "heartbeat" && type !== "typing:update") {
+        outgoingQueueRef.current.push(frame);
       }
-    },
-    []
-  );
+    }
+  }, []);
 
   // Backward-compatible alias
   const sendMessage = useCallback(
     (type: string, payload: any) => {
       emit(type as any, payload);
     },
-    [emit]
+    [emit],
   );
 
   // 4. Room Management (Topic Subscription)
@@ -131,7 +132,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       activeRoomsRef.current.add(conversationId);
       emit("room:join", { conversationId });
     },
-    [emit]
+    [emit],
   );
 
   const leaveConversation = useCallback(
@@ -140,7 +141,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       activeRoomsRef.current.delete(conversationId);
       emit("room:leave", { conversationId });
     },
-    [emit]
+    [emit],
   );
 
   // 5. Chat Actions
@@ -164,40 +165,42 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         conversationId,
         content,
         type,
-        tempId: tempId || `temp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+        tempId:
+          tempId ||
+          `temp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
         replyToId,
         attachments: attachments || [],
       });
     },
-    [emit]
+    [emit],
   );
 
   const sendTyping = useCallback(
     (conversationId: string, isTyping: boolean) => {
       emit("typing:update", { conversationId, isTyping });
     },
-    [emit]
+    [emit],
   );
 
   const markAsRead = useCallback(
     (conversationId: string, messageId?: string) => {
       emit("receipt:read", { conversationId, messageId });
     },
-    [emit]
+    [emit],
   );
 
   const sendReaction = useCallback(
     (conversationId: string, messageId: string, emoji: string) => {
       emit("reaction:update", { conversationId, messageId, emoji });
     },
-    [emit]
+    [emit],
   );
 
   const deleteMessage = useCallback(
     (conversationId: string, messageId: string) => {
       emit("message:delete", { conversationId, messageId });
     },
-    [emit]
+    [emit],
   );
 
   // 6. Connect & Lifecycle Management
@@ -218,7 +221,9 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       if (isManuallyClosedRef.current) return;
 
       try {
-        const ws = new WebSocket(`${WS_ENDPOINT}?token=${encodeURIComponent(token!)}`);
+        const ws = new WebSocket(
+          `${WS_ENDPOINT}?token=${encodeURIComponent(token!)}`,
+        );
         socketRef.current = ws;
 
         ws.onopen = () => {
@@ -227,7 +232,12 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
           // Rejoin active conversation rooms after reconnect
           activeRoomsRef.current.forEach((conversationId) => {
-            ws.send(JSON.stringify({ type: "room:join", payload: { conversationId } }));
+            ws.send(
+              JSON.stringify({
+                type: "room:join",
+                payload: { conversationId },
+              }),
+            );
           });
 
           // Request initial presence of all online users
@@ -248,7 +258,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
             // Exponential backoff with jitter (1s - 10s)
             const timeout = Math.min(
               1000 * Math.pow(1.5, retryCountRef.current) + Math.random() * 500,
-              10000
+              10000,
             );
             retryCountRef.current += 1;
             reconnectTimeoutRef.current = setTimeout(connect, timeout);
@@ -265,7 +275,10 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
             const { type, payload } = JSON.parse(event.data);
 
             // Handle presence initial list
-            if (type === "presence:initial" && Array.isArray(payload?.onlineUserIds)) {
+            if (
+              type === "presence:initial" &&
+              Array.isArray(payload?.onlineUserIds)
+            ) {
               setOnlineUserIds(new Set(payload.onlineUserIds));
             }
 
@@ -297,7 +310,9 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     // Heartbeat every 20 seconds to keep 45s Redis lease active
     const heartbeatInterval = setInterval(() => {
       if (socketRef.current?.readyState === WebSocket.OPEN) {
-        socketRef.current.send(JSON.stringify({ type: "heartbeat", payload: {} }));
+        socketRef.current.send(
+          JSON.stringify({ type: "heartbeat", payload: {} }),
+        );
       }
     }, 20000);
 
@@ -316,9 +331,16 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   }, [token, dispatchEvent]);
 
   // 7. Presence Check Helpers
-  const checkPresence = useCallback(async (_userIds: string[]) => {
+  const checkPresence = useCallback(async (userIds: string[]) => {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({ type: "presence:get", payload: {} }));
+      socketRef.current.send(
+        JSON.stringify({
+          type: "presence:get",
+          payload: {
+            userIds,
+          },
+        }),
+      );
     }
   }, []);
 
@@ -326,7 +348,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     (userId: string) => {
       return onlineUserIds.has(userId);
     },
-    [onlineUserIds]
+    [onlineUserIds],
   );
 
   return (

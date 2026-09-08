@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronUp, Mic, Video, Volume2, Check } from "lucide-react";
+import { Mic, Video, Volume2, Check } from "lucide-react";
 
 export type DeviceKind = "audioinput" | "audiooutput" | "videoinput";
 

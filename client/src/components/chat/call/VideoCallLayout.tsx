@@ -103,7 +103,6 @@ export const VideoCallLayout: React.FC<VideoCallLayoutProps> = ({
 
   return (
     <div className="relative w-full h-full flex items-center justify-center bg-zinc-950">
-
       {/* Remote full-screen tile */}
       <VideoTile
         stream={remoteVideoOff ? null : remoteStream}
@@ -153,7 +152,9 @@ export const VideoCallLayout: React.FC<VideoCallLayoutProps> = ({
       >
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
-            <span className="text-white font-semibold text-base">{partnerName}</span>
+            <span className="text-white font-semibold text-base">
+              {partnerName}
+            </span>
             {isRemoteSpeaking && !isRemoteAudioMuted && (
               <SpeakingIndicator speaking variant="bars" color="#34d399" />
             )}
@@ -163,7 +164,9 @@ export const VideoCallLayout: React.FC<VideoCallLayoutProps> = ({
               </span>
             )}
           </div>
-          <span className="text-white/50 text-xs mt-0.5">{callDurationLabel}</span>
+          <span className="text-white/50 text-xs mt-0.5">
+            {callDurationLabel}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           {isScreenSharing && (
@@ -175,7 +178,11 @@ export const VideoCallLayout: React.FC<VideoCallLayoutProps> = ({
             onClick={onToggleFullscreen}
             className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 flex items-center justify-center text-white transition-all"
           >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            {isFullscreen ? (
+              <Minimize2 className="w-4 h-4" />
+            ) : (
+              <Maximize2 className="w-4 h-4" />
+            )}
           </button>
         </div>
       </div>
@@ -188,7 +195,13 @@ export const VideoCallLayout: React.FC<VideoCallLayoutProps> = ({
       >
         <div className="flex items-center gap-3">
           <DeviceControlButton
-            icon={isMicMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            icon={
+              isMicMuted ? (
+                <MicOff className="w-5 h-5" />
+              ) : (
+                <Mic className="w-5 h-5" />
+              )
+            }
             label={isMicMuted ? "Unmute" : "Mute"}
             active={!isMicMuted}
             onToggle={toggleMic}
@@ -198,7 +211,13 @@ export const VideoCallLayout: React.FC<VideoCallLayoutProps> = ({
             pulse={isLocalSpeaking && !isMicMuted}
           />
           <DeviceControlButton
-            icon={isCameraOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+            icon={
+              isCameraOff ? (
+                <VideoOff className="w-5 h-5" />
+              ) : (
+                <Video className="w-5 h-5" />
+              )
+            }
             label={isCameraOff ? "Cam On" : "Cam Off"}
             active={!isCameraOff}
             onToggle={toggleCamera}
@@ -217,7 +236,13 @@ export const VideoCallLayout: React.FC<VideoCallLayoutProps> = ({
           />
           <ControlButton
             active={!isScreenSharing}
-            icon={isScreenSharing ? <MonitorOff className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
+            icon={
+              isScreenSharing ? (
+                <MonitorOff className="w-5 h-5" />
+              ) : (
+                <Monitor className="w-5 h-5" />
+              )
+            }
             label={isScreenSharing ? "Stop Share" : "Share"}
             onClick={isScreenSharing ? stopScreenShare : startScreenShare}
             accent={isScreenSharing}

@@ -58,21 +58,19 @@ export const CallOverlay: React.FC = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
   const controlsTimerRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // const [isRemoteSpeaking, setIsRemoteSpeaking] = useState(false);
   // const [isLocalSpeaking, setIsLocalSpeaking] = useState(false);
 
-    // useEffect(
+  // useEffect(
   //   () => setIsLocalSpeaking(localVolume > 0.06),
 
   //   [localVolume]);
 
   // useEffect(() => setIsRemoteSpeaking(remoteVolume > 0.06), [remoteVolume]);
-  
+
   const isLocalSpeaking = localVolume > 0.06;
-  const isRemoteSpeaking = remoteVolume > 0.06
-
-
+  const isRemoteSpeaking = remoteVolume > 0.06;
 
   // Bind remote audio
   useEffect(() => {
@@ -94,9 +92,9 @@ export const CallOverlay: React.FC = () => {
   }, [callType, callState]);
 
   useEffect(() => {
-    queueMicrotask(()=>{
+    queueMicrotask(() => {
       resetControlsTimer();
-    })
+    });
     return () => {
       if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
     };
