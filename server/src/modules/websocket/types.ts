@@ -236,6 +236,16 @@ export interface S2C_CallIceCandidate {
   candidate: RTCIceCandidateInit;
 }
 
+/** `call:media-state` — broadcast mic/camera mute state to partner */
+export interface S2C_CallMediaState {
+  conversationId: string;
+  senderId: string;
+  /** true = mic is muted */
+  isMicMuted: boolean;
+  /** true = camera is off */
+  isCameraOff: boolean;
+}
+
 export interface S2C_Error {
   code: string;
   message: string;
@@ -259,3 +269,9 @@ export type TCallAccept      = Static<typeof CallAcceptPayload>;
 export type TCallReject      = Static<typeof CallRejectPayload>;
 export type TCallEnd         = Static<typeof CallEndPayload>;
 export type TCallIceCandidate = Static<typeof CallIceCandidatePayload>;
+export interface TCallMediaState {
+  targetUserId: string;
+  conversationId: string;
+  isMicMuted: boolean;
+  isCameraOff: boolean;
+}

@@ -157,6 +157,12 @@ export interface ServerToClientEvents {
   "call:rejected": CallRejectedPayload;
   "call:ended": CallEndedPayload;
   "call:ice-candidate": CallIceCandidatePayload;
+  "call:media-state": {
+    conversationId: string;
+    senderId: string;
+    isMicMuted: boolean;
+    isCameraOff: boolean;
+  };
   "heartbeat:ack": { timestamp: number };
   "error": SocketErrorPayload;
 }
@@ -214,6 +220,12 @@ export interface ClientToServerEvents {
     targetUserId: string;
     candidate: any;
     conversationId?: string;
+  };
+  "call:media-state": {
+    targetUserId: string;
+    conversationId: string;
+    isMicMuted: boolean;
+    isCameraOff: boolean;
   };
   "heartbeat": Record<string, never>;
 }

@@ -5,11 +5,13 @@ import type {
   TCallReject,
   TCallEnd,
   TCallIceCandidate,
+  TCallMediaState,
   S2C_CallIncoming,
   S2C_CallAccepted,
   S2C_CallRejected,
   S2C_CallEnded,
   S2C_CallIceCandidate,
+  S2C_CallMediaState,
 } from "../types";
 import type { WsContext } from "./context";
 
@@ -90,4 +92,21 @@ export async function handleCallIceCandidate(
     candidate,
   };
   await publishToUser(targetUserId, "call:ice-candidate", icePayload);
+}
+
+/** `call:media-state` — relay mic/camera mute state to remote peer */
+export async function handleCallMediaState(
+  ctx: WsContext,
+  payload: TCallMediaState
+): Promise<void> {
+  const { targetUserId, conversationId, isMicMuted, isCameraOff } = payload;
+  if (!targetUserId) return;
+
+  const statePayload: S2C_CallMediaState = {
+    conversationId,
+    senderId: ctx.senderId,
+    isMicMuted,
+    isCameraOff,
+  };
+  await publishToUser(targetUserId, "call:media-state", statePayload);
 }

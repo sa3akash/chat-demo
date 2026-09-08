@@ -37,6 +37,7 @@ import {
   handleCallReject,
   handleCallEnd,
   handleCallIceCandidate,
+  handleCallMediaState,
   sendError,
   type WsContext,
 } from "./handlers";
@@ -244,6 +245,10 @@ export const websocket = new Elysia()
 
           case "call:ice-candidate":
             await handleCallIceCandidate(ctx, payload as TCallIceCandidate);
+            break;
+
+          case "call:media-state":
+            await handleCallMediaState(ctx, payload as any);
             break;
 
           default:

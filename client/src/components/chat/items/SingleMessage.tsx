@@ -210,6 +210,7 @@ export const SingleMessage: React.FC<SingleMessageProps> = ({
                     className="max-w-full max-h-72 object-cover rounded-lg"
                     width={400}
                     height={300}
+                    unoptimized
                   />
                 </div>
               )}

@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/immutability */
+/* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable react-hooks/preserve-manual-memoization */
 "use client";
 
@@ -80,6 +82,7 @@ interface CallContextType {
   isCameraOff: boolean;
   isScreenSharing: boolean;
   isRemoteMuted: boolean; // true when remote has no active video tracks
+  isRemoteAudioMuted: boolean; // true when remote audio track is muted/disabled
   localStream: MediaStream | null;
   remoteStream: MediaStream | null;
   screenStream: MediaStream | null;
@@ -87,6 +90,12 @@ interface CallContextType {
   localVolume: number;
   /** 0.0–1.0 remote audio volume (60fps) */
   remoteVolume: number;
+  /** Currently active audio input device ID */
+  activeAudioInputId: string | null;
+  /** Currently active audio output device ID */
+  activeAudioOutputId: string | null;
+  /** Currently active video input device ID */
+  activeVideoInputId: string | null;
   startCall: (
     recipientId: string,
     recipientName: string,
@@ -100,6 +109,12 @@ interface CallContextType {
   toggleCamera: () => void;
   startScreenShare: () => Promise<void>;
   stopScreenShare: () => void;
+  /** Switch to a different microphone */
+  switchAudioInput: (deviceId: string) => Promise<void>;
+  /** Switch audio output (speaker) — uses setSinkId where supported */
+  switchAudioOutput: (deviceId: string) => Promise<void>;
+  /** Switch to a different camera */
+  switchCamera: (deviceId: string) => Promise<void>;
 }
 
 const CallContext = createContext<CallContextType | null>(null);
@@ -137,6 +152,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isRemoteMuted, setIsRemoteMuted] = useState(false);
+  const [isRemoteAudioMuted, setIsRemoteAudioMuted] = useState(false);
 
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
@@ -144,6 +160,14 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
 
   const [localVolume, setLocalVolume] = useState(0);
   const [remoteVolume, setRemoteVolume] = useState(0);
+
+  // Active device IDs
+  const [activeAudioInputId, setActiveAudioInputId] = useState<string | null>(null);
+  const [activeAudioOutputId, setActiveAudioOutputId] = useState<string | null>(null);
+  const [activeVideoInputId, setActiveVideoInputId] = useState<string | null>(null);
+
+  // Ref to the remote audio element for setSinkId
+  const remoteAudioElRef = useRef<HTMLAudioElement | null>(null);
 
   // Refs — never trigger re-renders, always up-to-date
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -155,11 +179,14 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
   const localVolCleanupRef = useRef<(() => void) | null>(null);
   const remoteVolCleanupRef = useRef<(() => void) | null>(null);
   const callStateRef = useRef<CallState>("idle");
+  // Stable refs to partner/conversationId — always current, safe in callbacks
+  const partnerRef = useRef<{ id: string; name: string } | null>(null);
+  const activeConvIdRef = useRef<string | null>(null);
 
-  // Keep callStateRef in sync for use inside stable closures
-  useEffect(() => {
-    callStateRef.current = callState;
-  }, [callState]);
+  // Keep refs in sync
+  useEffect(() => { callStateRef.current = callState; }, [callState]);
+  useEffect(() => { partnerRef.current = partner; }, [partner]);
+  useEffect(() => { activeConvIdRef.current = activeConversationId; }, [activeConversationId]);
 
   // ── Volume analysers ──────────────────────────────────────────────────────
 
@@ -235,6 +262,35 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, [remoteStream]);
 
+  // Detect whether remote audio is muted
+  useEffect(() => {
+    if (!remoteStream) {
+      setIsRemoteAudioMuted(false);
+      return;
+    }
+    const checkAudio = () => {
+      const audioTracks = remoteStream.getAudioTracks();
+      // No audio tracks OR all disabled/ended → muted
+      const hasActiveAudio = audioTracks.some(
+        (t) => t.enabled && t.readyState === "live",
+      );
+      setIsRemoteAudioMuted(!hasActiveAudio);
+    };
+    checkAudio();
+    remoteStream.getAudioTracks().forEach((t) => {
+      t.addEventListener("mute", checkAudio);
+      t.addEventListener("unmute", checkAudio);
+      t.addEventListener("ended", checkAudio);
+    });
+    return () => {
+      remoteStream.getAudioTracks().forEach((t) => {
+        t.removeEventListener("mute", checkAudio);
+        t.removeEventListener("unmute", checkAudio);
+        t.removeEventListener("ended", checkAudio);
+      });
+    };
+  }, [remoteStream]);
+
   // ── Call duration counter ─────────────────────────────────────────────────
   useEffect(() => {
     if (callState === "connected") {
@@ -283,6 +339,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
     setIsCameraOff(false);
     setIsScreenSharing(false);
     setIsRemoteMuted(false);
+    setIsRemoteAudioMuted(false);
     setLocalVolume(0);
     setRemoteVolume(0);
   }, []);
@@ -479,11 +536,25 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
   // ── 5. Toggle mic ─────────────────────────────────────────────────────────
   const toggleMic = useCallback(() => {
     const track = localStreamRef.current?.getAudioTracks()[0];
-    if (track) {
-      track.enabled = !track.enabled;
-      setIsMicMuted(!track.enabled);
+    if (!track) return;
+    track.enabled = !track.enabled;
+    const muted = !track.enabled;
+    setIsMicMuted(muted);
+    // Signal media state to remote peer
+    const p = partnerRef.current;
+    const cid = activeConvIdRef.current;
+    if (p && cid) {
+      // isCameraOff is not tracked here — peek at current video track
+      const videoTrack = localStreamRef.current?.getVideoTracks()[0];
+      const cameraOff = videoTrack ? !videoTrack.enabled : true;
+      emit("call:media-state", {
+        targetUserId: p.id,
+        conversationId: cid,
+        isMicMuted: muted,
+        isCameraOff: cameraOff,
+      });
     }
-  }, []);
+  }, [emit]);
 
   // ── 6. Toggle camera ──────────────────────────────────────────────────────
   const toggleCamera = useCallback(async () => {
@@ -501,65 +572,145 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
       const sender = pcRef.current
         ?.getSenders()
         .find((s) => s.track?.kind === "video");
+      if (sender) await sender.replaceTrack(videoTrack);
 
-      if (sender) {
-        await sender.replaceTrack(videoTrack);
+      // Signal camera off to remote peer
+      const p = partnerRef.current;
+      const cid = activeConvIdRef.current;
+      if (p && cid) {
+        const audioTrack = localStreamRef.current?.getAudioTracks()[0];
+        emit("call:media-state", {
+          targetUserId: p.id,
+          conversationId: cid,
+          isMicMuted: audioTrack ? !audioTrack.enabled : false,
+          isCameraOff: true,
+        });
       }
-
       return;
     }
 
-    // CAMERA ON
+    // CAMERA ON (existing track)
     if (videoTrack) {
       videoTrack.enabled = true;
-
       const sender = pcRef.current
         ?.getSenders()
         .find((s) => s.track?.kind === "video");
-
-      if (sender) {
-        await sender.replaceTrack(videoTrack);
-      }
+      if (sender) await sender.replaceTrack(videoTrack);
 
       setLocalStream(new MediaStream(stream.getTracks()));
       setIsCameraOff(false);
 
+      // Signal camera on to remote peer
+      const p = partnerRef.current;
+      const cid = activeConvIdRef.current;
+      if (p && cid) {
+        const audioTrack = localStreamRef.current?.getAudioTracks()[0];
+        emit("call:media-state", {
+          targetUserId: p.id,
+          conversationId: cid,
+          isMicMuted: audioTrack ? !audioTrack.enabled : false,
+          isCameraOff: false,
+        });
+      }
       return;
     }
 
-    // Track was removed/stopped
+    // Track was removed/stopped — request camera again
     try {
       const cameraStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          facingMode: "user",
-        },
+        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" },
       });
-
       const newTrack = cameraStream.getVideoTracks()[0];
-
       stream.addTrack(newTrack);
-
-      const sender = pcRef.current
-        ?.getSenders()
-        .find((s) => s.track?.kind === "video");
-
-      if (sender) {
-        await sender.replaceTrack(newTrack);
-      } else if (pcRef.current) {
-        pcRef.current.addTrack(newTrack, stream);
-      }
-
+      const sender = pcRef.current?.getSenders().find((s) => s.track?.kind === "video");
+      if (sender) await sender.replaceTrack(newTrack);
+      else if (pcRef.current) pcRef.current.addTrack(newTrack, stream);
       localStreamRef.current = stream;
       setLocalStream(new MediaStream(stream.getTracks()));
       setIsCameraOff(false);
     } catch (err) {
       console.error("Failed to enable camera:", err);
+      return;
+    }
+
+    // Signal camera on to remote peer
+    const p = partnerRef.current;
+    const cid = activeConvIdRef.current;
+    if (p && cid) {
+      const audioTrack = localStreamRef.current?.getAudioTracks()[0];
+      emit("call:media-state", {
+        targetUserId: p.id,
+        conversationId: cid,
+        isMicMuted: audioTrack ? !audioTrack.enabled : false,
+        isCameraOff: false,
+      });
+    }
+  }, [emit]);
+
+  // ── 7. Switch audio input (microphone) ──────────────────────────────────
+  const switchAudioInput = useCallback(async (deviceId: string) => {
+    const stream = localStreamRef.current;
+    if (!stream) return;
+    try {
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        audio: { deviceId: { exact: deviceId }, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        video: false,
+      });
+      const newTrack = newStream.getAudioTracks()[0];
+      // Replace old audio track in the stream
+      stream.getAudioTracks().forEach((t) => { t.stop(); stream.removeTrack(t); });
+      stream.addTrack(newTrack);
+      // Replace in peer connection
+      const sender = pcRef.current?.getSenders().find((s) => s.track?.kind === "audio");
+      if (sender) await sender.replaceTrack(newTrack);
+      localStreamRef.current = stream;
+      setLocalStream(new MediaStream(stream.getTracks()));
+      setActiveAudioInputId(deviceId);
+    } catch (err) {
+      console.error("switchAudioInput failed:", err);
     }
   }, []);
 
-  // ── 7. Start screen share ─────────────────────────────────────────────────
+  // ── 8. Switch audio output (speaker) ──────────────────────────────────────
+  const switchAudioOutput = useCallback(async (deviceId: string) => {
+    setActiveAudioOutputId(deviceId);
+    // Apply to the remote audio element if available
+    const el = remoteAudioElRef.current;
+    if (el && typeof (el as any).setSinkId === "function") {
+      try {
+        await (el as any).setSinkId(deviceId);
+      } catch (err) {
+        console.warn("setSinkId failed:", err);
+      }
+    }
+  }, []);
+
+  // ── 9. Switch camera ──────────────────────────────────────────────────────
+  const switchCamera = useCallback(async (deviceId: string) => {
+    const stream = localStreamRef.current;
+    if (!stream) return;
+    try {
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+      const newTrack = newStream.getVideoTracks()[0];
+      // Replace old video track
+      stream.getVideoTracks().forEach((t) => { t.stop(); stream.removeTrack(t); });
+      stream.addTrack(newTrack);
+      // Replace in peer connection
+      const sender = pcRef.current?.getSenders().find((s) => s.track?.kind === "video");
+      if (sender) await sender.replaceTrack(newTrack);
+      localStreamRef.current = stream;
+      setLocalStream(new MediaStream(stream.getTracks()));
+      setActiveVideoInputId(deviceId);
+      setIsCameraOff(false);
+    } catch (err) {
+      console.error("switchCamera failed:", err);
+    }
+  }, []);
+
+  // ── 10. Start screen share ─────────────────────────────────────────────────
   const startScreenShare = useCallback(async () => {
     if (!pcRef.current) return;
     try {
@@ -658,14 +809,24 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
       },
     );
 
+    // call:media-state — reliable mic/camera state from the remote peer
+    const unsubMediaState = subscribe(
+      "call:media-state",
+      (data: { senderId: string; isMicMuted: boolean; isCameraOff: boolean }) => {
+        // isRemoteMuted = camera off, isRemoteAudioMuted = mic muted
+        setIsRemoteMuted(data.isCameraOff);
+        setIsRemoteAudioMuted(data.isMicMuted);
+      },
+    );
+
     return () => {
       unsubIncoming();
       unsubAccepted();
       unsubRejected();
       unsubEnded();
       unsubIce();
+      unsubMediaState();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subscribe, emit, cleanupMedia]);
 
   return (
@@ -679,11 +840,15 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         isCameraOff,
         isScreenSharing,
         isRemoteMuted,
+        isRemoteAudioMuted,
         localStream,
         remoteStream,
         screenStream,
         localVolume,
         remoteVolume,
+        activeAudioInputId,
+        activeAudioOutputId,
+        activeVideoInputId,
         startCall,
         acceptCall,
         rejectCall,
@@ -692,6 +857,9 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         toggleCamera,
         startScreenShare,
         stopScreenShare,
+        switchAudioInput,
+        switchAudioOutput,
+        switchCamera,
       }}
     >
       {children}
