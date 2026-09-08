@@ -1,7 +1,6 @@
 import { getConversations } from "@/actions/conversation";
 import React from "react";
-import SingleConversation from "./items/SingleConversation";
-import ConversationHeader from "./items/ConversationHeader";
+import ConversationSidebar from "./ConversationSidebar";
 
 interface ConversationParams {
   conversationId: string | undefined;
@@ -9,25 +8,24 @@ interface ConversationParams {
 
 const Conversation = async ({ conversationId }: ConversationParams) => {
   const { data, error, success } = await getConversations();
+
   if (!success) {
-    return <div className="text-red-500">{error}</div>;
+    return (
+      <div className="w-full md:w-80 border-r bg-card/30 backdrop-blur p-4 h-full flex flex-col justify-center text-center">
+        <div className="text-sm text-destructive p-4 bg-destructive/10 rounded-2xl border border-destructive/20">
+          <p className="font-semibold mb-1">Failed to load chats</p>
+          <p className="text-xs opacity-80">{error || "Please try refreshing the page"}</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="max-w-72 w-full border-r p-4">
-      <ConversationHeader />
-
-      {/* list all conversations */}
-
-      <div className="flex flex-col gap-2">
-        {data?.map((conversation) => (
-          <SingleConversation
-            key={conversation.id}
-            conversation={conversation}
-            isActive={conversation.id === conversationId}
-          />
-        ))}
-      </div>
+    <div className="w-full md:w-80 lg:w-96 border-r bg-card/40 backdrop-blur flex flex-col h-full p-3.5 shrink-0">
+      <ConversationSidebar
+        initialConversations={data || []}
+        activeConversationId={conversationId}
+      />
     </div>
   );
 };

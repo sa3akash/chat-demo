@@ -11,43 +11,55 @@ interface SingleConversationProps {
   online?: boolean;
 }
 
-function ActiveIndicator() {
-  return <div className="absolute inset-0 ring-1 ring-green-500 rounded-md" />;
-}
-
-function OnlineIndicator() {
-  return (
-    <div className="absolute right-1 bottom-1 w-2 h-2 rounded-full bg-green-500" />
-  );
-}
-
 const SingleConversation: React.FC<SingleConversationProps> = ({
   conversation,
   isActive,
-  online,
+  online = false,
 }) => {
+  const username = conversation.otherUser?.username || conversation.title || "Chat";
+  const avatarInitials = username.slice(0, 2).toUpperCase();
 
   return (
     <Link
       href={`/chat?id=${conversation.id}`}
-      className={`flex relative items-center ring-1 ring-secondary justify-between p-2 hover:bg-primary/10 rounded-md cursor-pointer transition-colors ${
-        isActive ? "bg-primary/10" : ""
+      className={`flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-all ${
+        isActive
+          ? "bg-primary/15 text-foreground ring-1 ring-primary/30 font-medium"
+          : "hover:bg-muted/60 text-muted-foreground hover:text-foreground"
       }`}
     >
-      {isActive && <ActiveIndicator />}
-      {online && <OnlineIndicator />}
-      <div className="flex items-center">
-        <div className="w-8 h-8 bg-gray-200 rounded-full mr-2"></div>
-        <div>
-          <p className="font-medium">{conversation.otherUser.username}</p>
-          <p className="text-sm text-gray-500">
-            {conversation.latestMessage?.content}
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="relative shrink-0">
+          <div className="w-10 h-10 rounded-full bg-primary/10 border border-border/60 flex items-center justify-center text-primary text-xs font-semibold">
+            {avatarInitials}
+          </div>
+          {online && (
+            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
+          )}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-1">
+            <p className="text-sm font-semibold truncate text-foreground">
+              {username}
+            </p>
+          </div>
+          <p className="text-xs text-muted-foreground truncate max-w-[140px]">
+            {conversation.latestMessage?.content || "No messages yet"}
           </p>
         </div>
       </div>
-      <span className="text-sm text-gray-500">
-        {fromNow(conversation.lastMessageAt || "")}
-      </span>
+
+      <div className="flex flex-col items-end gap-1 shrink-0 ml-2">
+        <span className="text-[10px] text-muted-foreground">
+          {conversation.lastMessageAt ? fromNow(conversation.lastMessageAt) : ""}
+        </span>
+        {conversation.unreadCount > 0 && !isActive && (
+          <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-primary text-primary-foreground min-w-4 text-center">
+            {conversation.unreadCount > 99 ? "99+" : conversation.unreadCount}
+          </span>
+        )}
+      </div>
     </Link>
   );
 };

@@ -70,7 +70,7 @@ export const conversationRoutes = new Elysia({ prefix: "/conversations" })
       }),
       isAuth: true,
       response: {
-        200: t.Pick(_userSchema, ["username", "email"]),
+        200: t.Pick(_userSchema, ["id", "username", "email"]),
         400: ConversationModel.createConversationInvalid,
       },
       detail: {

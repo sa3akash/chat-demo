@@ -136,11 +136,12 @@ export const getOthersUser = async (conversationId: string) => {
         success: false,
       };
     }
-    const { username,email } = await response.json();
+    const { id, username, email } = await response.json();
     return {
       data: {
+        id,
         username,
-        email
+        email,
       },
       success: true,
       error: null,

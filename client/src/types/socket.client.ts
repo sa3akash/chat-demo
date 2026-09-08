@@ -1,92 +1,200 @@
 // types/socket.client.ts
 
-export type MediaType = "image" | "video" | "audio" | "file";
-export type ReceiptStatus = "delivered" | "read";
-export type ReactionAction = "add" | "remove";
-export type PresenceStatus = "online" | "offline" | "away" | "dnd";
-export type GroupAction = "member_added" | "member_removed" | "renamed" | "role_changed";
+export type MessageDeliveryStatus = "pending" | "sent" | "delivered" | "read" | "failed";
 
-export interface ChatPayload {
+export interface MessageSender {
   id: string;
-  conversationId: string;
-  senderId: string;
-  senderName?: string;
-  receiverId?: string;
-  groupId?: string;
-  text?: string;
-  mediaUrl?: string;
-  mediaType?: MediaType;
-  replyToId?: string;
-  createdAt: number;
+  username: string;
+  email?: string;
 }
 
-export interface StatusReceiptPayload {
-  messageId?: string;
-  conversationId: string;
-  senderId: string;
-  status: ReceiptStatus;
-  timestamp: number;
+export interface MessageAttachment {
+  url: string;
+  name?: string;
+  mimeType?: string;
+  size?: number;
 }
 
-export interface TypingPayload {
+export interface SocketMessage {
+  id: string;
+  tempId?: string;
   conversationId: string;
+  content: string;
+  type: string; // "text" | "image" | "video" | "audio" | "file"
   senderId: string;
-  senderName?: string;
-  targetId: string;
+  sender?: MessageSender | null;
+  replyToId?: string | null;
+  attachments?: MessageAttachment[];
+  reactions?: Record<string, string[]>; // emoji -> array of userIds
+  deletedForEveryone?: boolean;
+  createdAt: string;
+  status?: MessageDeliveryStatus;
+}
+
+export interface ChatAckPayload {
+  tempId?: string;
+  messageId: string;
+  conversationId: string;
+  createdAt: string;
+}
+
+export interface TypingUpdatePayload {
+  conversationId: string;
+  userId: string;
+  username: string;
   isTyping: boolean;
 }
 
-export interface ReactionPayload {
-  messageId: string;
+export interface ReceiptReadPayload {
   conversationId: string;
   userId: string;
-  targetUserId: string;
-  emoji: string;
-  action: ReactionAction;
+  messageId?: string;
+  readAt: string;
 }
 
-export interface PresencePayload {
+export interface ReactionUpdatePayload {
+  conversationId: string;
+  messageId: string;
+  reactions: Record<string, string[]>;
   userId: string;
-  username?: string;
-  status: PresenceStatus;
+  emoji: string;
+}
+
+export interface MessageDeletePayload {
+  conversationId: string;
+  messageId: string;
+}
+
+export interface ConversationUpdatePayload {
+  conversationId: string;
+  latestMessage?: SocketMessage;
+  lastMessageAt?: string;
+  unreadCount?: number;
+}
+
+export interface PresenceInitialPayload {
+  onlineUserIds: string[];
+}
+
+export interface PresenceUpdatePayload {
+  userId: string;
+  status: "online" | "offline";
   lastSeen?: number;
 }
 
-export interface GroupActionPayload {
-  groupId: string;
-  action: GroupAction;
-  operatorId: string;
-  memberIds: string[];
+export interface IncomingCallPayload {
+  conversationId: string;
+  callerId: string;
+  callerName: string;
+  callType: "audio" | "video";
+  offer?: any;
 }
 
-export interface NotificationPayload {
-  id: string;
+export interface CallAcceptedPayload {
+  conversationId: string;
+  calleeId: string;
+  calleeName: string;
+  answer?: any;
+}
+
+export interface CallRejectedPayload {
+  conversationId: string;
+  calleeId: string;
+}
+
+export interface CallEndedPayload {
+  conversationId: string;
   userId: string;
-  actorId?: string;
-  actorName?: string;
-  type: string;
-  title: string;
-  body: string;
-  link?: string;
-  createdAt: number;
 }
 
-// Complete map of all client events to their payloads
-export interface SocketPayloadMap {
-  chat: ChatPayload;
-  receipt: StatusReceiptPayload;
-  typing: TypingPayload;
-  reaction: ReactionPayload;
-  presence: PresencePayload;
-  group_action: GroupActionPayload;
-  notification: NotificationPayload;
+export interface CallIceCandidatePayload {
+  conversationId?: string;
+  senderId: string;
+  candidate: any;
 }
 
-export type SocketEventType = keyof SocketPayloadMap;
+export interface RoomActionPayload {
+  conversationId: string;
+}
 
-export type ClientSocketMessage = {
-  [K in SocketEventType]: {
-    type: K;
-    payload: SocketPayloadMap[K];
+export interface SocketErrorPayload {
+  code: string;
+  message: string;
+}
+
+// Map of server-to-client event names to payloads
+export interface ServerToClientEvents {
+  "chat:new": SocketMessage;
+  "chat:ack": ChatAckPayload;
+  "typing:update": TypingUpdatePayload;
+  "receipt:read": ReceiptReadPayload;
+  "reaction:update": ReactionUpdatePayload;
+  "message:delete": MessageDeletePayload;
+  "conversation:update": ConversationUpdatePayload;
+  "presence:initial": PresenceInitialPayload;
+  "presence:update": PresenceUpdatePayload;
+  "call:incoming": IncomingCallPayload;
+  "call:accepted": CallAcceptedPayload;
+  "call:rejected": CallRejectedPayload;
+  "call:ended": CallEndedPayload;
+  "call:ice-candidate": CallIceCandidatePayload;
+  "heartbeat:ack": { timestamp: number };
+  "error": SocketErrorPayload;
+}
+
+// Map of client-to-server event names to payloads
+export interface ClientToServerEvents {
+  "chat:send": {
+    conversationId: string;
+    content: string;
+    type?: string;
+    tempId?: string;
+    replyToId?: string | null;
+    attachments?: MessageAttachment[];
   };
-}[SocketEventType];
+  "room:join": RoomActionPayload;
+  "room:leave": RoomActionPayload;
+  "typing:update": {
+    conversationId: string;
+    isTyping: boolean;
+  };
+  "receipt:read": {
+    conversationId: string;
+    messageId?: string;
+  };
+  "reaction:update": {
+    conversationId: string;
+    messageId: string;
+    emoji: string;
+  };
+  "message:delete": {
+    conversationId: string;
+    messageId: string;
+  };
+  "presence:get": Record<string, never>;
+  "call:initiate": {
+    recipientId: string;
+    conversationId: string;
+    callType: "audio" | "video";
+    offer?: any;
+  };
+  "call:accept": {
+    callerId: string;
+    conversationId: string;
+    answer?: any;
+  };
+  "call:reject": {
+    callerId: string;
+    conversationId: string;
+  };
+  "call:end": {
+    targetUserId: string;
+    conversationId: string;
+  };
+  "call:ice-candidate": {
+    targetUserId: string;
+    candidate: any;
+    conversationId?: string;
+  };
+  "heartbeat": Record<string, never>;
+}

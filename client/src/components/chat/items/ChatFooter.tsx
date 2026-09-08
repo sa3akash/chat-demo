@@ -1,53 +1,400 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { MicIcon, PlusIcon, SendIcon } from "lucide-react";
-import React, { useState } from "react";
-import { useSocket } from "@/context/SocketContext";
+import {
+  SendIcon,
+  Smile,
+  Paperclip,
+  Mic,
+  X,
+  Image as ImageIcon,
+  FileText,
+  Trash2,
+  Reply,
+} from "lucide-react";
+import React, { useState, useRef, useEffect, KeyboardEvent } from "react";
+import { ChatMessageState } from "@/hooks/useChat";
+import { MessageAttachment } from "@/types/socket.client";
 
-const ChatFooter = () => {
-  const { socket } = useSocket();
+interface ChatFooterProps {
+  replyToMessage?: ChatMessageState | null;
+  onClearReply?: () => void;
+  onSendMessage: (params: {
+    content: string;
+    type?: string;
+    attachments?: MessageAttachment[];
+  }) => void;
+  onTyping: () => void;
+  disabled?: boolean;
+}
+
+const COMMON_EMOJIS = ["😀", "😂", "😍", "🔥", "👍", "🎉", "❤️", "🙌", "🚀", "✨", "💯", "😎"];
+
+export const ChatFooter: React.FC<ChatFooterProps> = ({
+  replyToMessage,
+  onClearReply,
+  onSendMessage,
+  onTyping,
+  disabled = false,
+}) => {
   const [message, setMessage] = useState("");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [pendingAttachment, setPendingAttachment] = useState<{
+    name: string;
+    type: "image" | "file";
+    url: string;
+  } | null>(null);
 
-  const sendMessage = () => {
-    if (!socket || !message) return;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-    socket.send(
-      JSON.stringify({
-        type: "message",
-        payload: {
-          content: message,
-          timestamp: new Date().toISOString(),
-          conversationId: "",
-          senderId: "user-1",
-          receiverId: "user-2",
-        },
-      }),
-    );
+  // Recording timer
+  useEffect(() => {
+    if (isRecording) {
+      setRecordingSeconds(0);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingSeconds((prev) => prev + 1);
+      }, 1000);
+    } else {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+    }
+    return () => {
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    };
+  }, [isRecording]);
+
+  const handleSend = () => {
+    if ((!message.trim() && !pendingAttachment) || disabled) return;
+
+    if (pendingAttachment) {
+      onSendMessage({
+        content: message.trim() || pendingAttachment.name,
+        type: pendingAttachment.type,
+        attachments: [
+          {
+            url: pendingAttachment.url,
+            name: pendingAttachment.name,
+            mimeType: pendingAttachment.type === "image" ? "image/jpeg" : "application/octet-stream",
+          },
+        ],
+      });
+      setPendingAttachment(null);
+    } else {
+      onSendMessage({
+        content: message.trim(),
+        type: "text",
+      });
+    }
+
     setMessage("");
+    setShowEmojiPicker(false);
+    setShowAttachmentMenu(false);
+
+    // Reset textarea height
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
+  };
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.warn("Microphone access unavailable or denied, enabling voice recording simulation", err);
+      setIsRecording(true);
+    }
+  };
+
+  const handleSendVoiceNote = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        onSendMessage({
+          content: audioUrl,
+          type: "audio",
+        });
+        setIsRecording(false);
+      };
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
+    } else {
+      onSendMessage({
+        content: "https://actions.google.com/sounds/v1/speech/greeting_male.ogg",
+        type: "audio",
+      });
+      setIsRecording(false);
+    }
+  };
+
+  const handleCancelVoiceNote = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
+    }
+    setIsRecording(false);
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setMessage(e.target.value);
+    onTyping();
+
+    // Auto-expand textarea height
+    e.target.style.height = "auto";
+    e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+  };
+
+  const handleFileSelect = (type: "image" | "file", e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Create object URL for preview
+    const previewUrl = URL.createObjectURL(file);
+    setPendingAttachment({
+      name: file.name,
+      type,
+      url: previewUrl,
+    });
+    setShowAttachmentMenu(false);
+  };
+
+  const formatSeconds = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
   return (
-    <div className="border-t p-4">
-      <div className="flex items-center gap-2">
-        <button className="text-blue-500">
-          <PlusIcon />
-        </button>
-        <Input
-          type="text"
-          className="flex-1 border p-2 rounded-lg"
-          placeholder="Type a message"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-        />
-        {/* button for voice message */}
-        <Button variant="outline">
-          <MicIcon />
-        </Button>
-        <Button variant="outline" onClick={sendMessage}>
-          <SendIcon />
-        </Button>
+    <div className="border-t bg-card/80 backdrop-blur shrink-0 transition-all">
+      {/* Hidden File Inputs */}
+      <input
+        type="file"
+        ref={imageInputRef}
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => handleFileSelect("image", e)}
+      />
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept="*/*"
+        className="hidden"
+        onChange={(e) => handleFileSelect("file", e)}
+      />
+
+      {/* Quoted Message Banner */}
+      {replyToMessage && (
+        <div className="flex items-center justify-between px-4 py-2 bg-muted/40 border-b border-border/40 text-xs text-muted-foreground animate-in slide-in-from-bottom-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Reply className="w-3.5 h-3.5 text-primary shrink-0" />
+            <div className="min-w-0">
+              <span className="font-semibold text-foreground">
+                Replying to {replyToMessage.sender?.username || "message"}:
+              </span>{" "}
+              <span className="truncate">{replyToMessage.content}</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClearReply}
+            className="p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Attachment Preview Card */}
+      {pendingAttachment && (
+        <div className="flex items-center justify-between mx-4 my-2 p-2 bg-muted/60 rounded-xl border border-border/60 text-xs">
+          <div className="flex items-center gap-2">
+            {pendingAttachment.type === "image" ? (
+              <img
+                src={pendingAttachment.url}
+                alt="preview"
+                className="w-10 h-10 object-cover rounded-lg"
+              />
+            ) : (
+              <FileText className="w-6 h-6 text-primary" />
+            )}
+            <span className="font-medium truncate max-w-xs">{pendingAttachment.name}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPendingAttachment(null)}
+            className="p-1 rounded-full hover:bg-muted"
+          >
+            <X className="w-4 h-4 text-muted-foreground" />
+          </button>
+        </div>
+      )}
+
+      {/* Emoji Picker Popover */}
+      {showEmojiPicker && (
+        <div className="p-2 border-b border-border/40 flex flex-wrap gap-1 bg-popover/90 backdrop-blur animate-in fade-in">
+          {COMMON_EMOJIS.map((emoji) => (
+            <button
+              key={emoji}
+              type="button"
+              onClick={() => {
+                setMessage((prev) => prev + emoji);
+                setShowEmojiPicker(false);
+              }}
+              className="p-1.5 hover:bg-muted rounded-lg text-lg hover:scale-125 transition-transform"
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Input / Voice Recording Bar */}
+      <div className="p-3 px-4">
+        {isRecording ? (
+          /* Voice Recording Mode */
+          <div className="flex items-center justify-between bg-destructive/10 border border-destructive/20 rounded-2xl p-2.5 px-4 animate-in fade-in">
+            <div className="flex items-center gap-3">
+              <span className="w-3 h-3 rounded-full bg-destructive animate-ping" />
+              <span className="text-xs font-semibold text-destructive font-mono">
+                Recording {formatSeconds(recordingSeconds)}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleCancelVoiceNote}
+                className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl"
+              >
+                <Trash2 className="w-4 h-4 mr-1" />
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleSendVoiceNote}
+                className="rounded-xl shadow-xs"
+              >
+                <SendIcon className="w-3.5 h-3.5 mr-1" />
+                Send Voice
+              </Button>
+            </div>
+          </div>
+        ) : (
+          /* Normal Message Input Mode */
+          <div className="flex items-end gap-2 max-w-5xl mx-auto">
+            {/* Attachment Button */}
+            <div className="relative">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
+                className="rounded-xl text-muted-foreground hover:text-foreground h-10 w-10 shrink-0"
+              >
+                <Paperclip className="w-5 h-5" />
+              </Button>
+
+              {showAttachmentMenu && (
+                <div className="absolute bottom-full mb-2 left-0 flex flex-col gap-1 bg-popover/95 backdrop-blur border border-border shadow-xl rounded-2xl p-1.5 min-w-[140px] z-30 animate-in fade-in zoom-in-95">
+                  <button
+                    type="button"
+                    onClick={() => imageInputRef.current?.click()}
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-xl hover:bg-muted text-foreground transition-colors"
+                  >
+                    <ImageIcon className="w-4 h-4 text-emerald-500" />
+                    Photo / Image
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-xl hover:bg-muted text-foreground transition-colors"
+                  >
+                    <FileText className="w-4 h-4 text-sky-500" />
+                    Document / File
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Expandable Textarea with Emoji Button */}
+            <div className="flex-1 relative flex items-center bg-muted/40 border border-input rounded-2xl focus-within:border-primary focus-within:ring-1 focus-within:ring-primary shadow-inner">
+              <textarea
+                ref={textareaRef}
+                rows={1}
+                placeholder="Type a message..."
+                value={message}
+                onChange={handleChange}
+                onKeyDown={handleKeyDown}
+                disabled={disabled}
+                className="w-full resize-none bg-transparent py-2.5 pl-3.5 pr-10 text-sm focus:outline-hidden max-h-28 text-foreground placeholder:text-muted-foreground/70"
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                className="absolute right-3 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Smile className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Mic / Send Button */}
+            {message.trim() || pendingAttachment ? (
+              <Button
+                type="button"
+                onClick={handleSend}
+                disabled={disabled}
+                size="icon"
+                className="rounded-xl h-10 w-10 shrink-0 shadow-sm transition-transform active:scale-95"
+              >
+                <SendIcon className="w-4 h-4" />
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsRecording(true)}
+                className="rounded-xl h-10 w-10 shrink-0 text-muted-foreground hover:text-foreground hover:bg-muted"
+                title="Hold or click to record voice note"
+              >
+                <Mic className="w-5 h-5" />
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

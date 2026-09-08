@@ -1,6 +1,6 @@
 import { Elysia } from "elysia";
 import { errorMiddleware } from "./middlewares/error";
-import { websocket } from "./modules/websocket/gatway";
+import { setGatewayServer, websocket } from "./modules/websocket/gatway";
 import { logger } from "./lib/logger";
 import { dbConnect, dbDisconnect } from "./db";
 import { openapi } from "@elysia/openapi";
@@ -8,11 +8,21 @@ import { authRoutes } from "./modules/auth";
 import { conversationRoutes } from "./modules/conversations";
 import { messagesRoutes } from "./modules/messages";
 import { AppError } from "./lib/customError";
+import { cors } from "@elysia/cors";
 
 const app = new Elysia()
   .error({
     AppError,
   })
+
+  .use(cors({
+    origin: true,
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization", "*"],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "*"],
+    maxAge: 86400,
+    preflight: true,
+  }))
 
   .use(
     openapi({
@@ -77,20 +87,21 @@ const app = new Elysia()
       message: errorMessage,
     };
   },
-)
+);
 
-  .listen(4400, () => {
-    dbConnect()
-      .then(() => {
-        logger.info(
-          `🦊 Elysia is running at http://${app.server?.hostname}:${app.server?.port}/docs`,
-        );
-      })
-      .catch((error) => {
-        logger.error(error, "Database connection error");
-        process.exit(1);
-      });
-  });
+app.listen(4400, (server) => {
+  setGatewayServer(server);
+  dbConnect()
+    .then(() => {
+      logger.info(
+        `🦊 Elysia is running at http://${server?.hostname}:${server?.port}/docs`,
+      );
+    })
+    .catch((error) => {
+      logger.error(error, "Database connection error");
+      process.exit(1);
+    });
+});
 
 process.on("SIGINT", async () => {
   logger.info("Shutting down server...");

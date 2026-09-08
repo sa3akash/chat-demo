@@ -197,6 +197,7 @@ export abstract class Conversation {
     }
 
     return {
+      id: otherUser.userId,
       username: otherUser.user?.username!,
       email: otherUser.user?.email!,
     };

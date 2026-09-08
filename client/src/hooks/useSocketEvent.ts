@@ -1,37 +1,14 @@
-import { useEffect, useEffectEvent } from "react";
+import { useEffect } from "react";
 import { useSocket } from "../context/SocketContext";
-import type { SocketEventType, SocketPayloadMap } from "../types/socket.client";
+import type { ServerToClientEvents } from "../types/socket.client";
 
-export function useSocketEvent<K extends SocketEventType>(
+export function useSocketEvent<K extends keyof ServerToClientEvents>(
   eventType: K,
-  handler: (payload: SocketPayloadMap[K]) => void
+  handler: (payload: ServerToClientEvents[K]) => void
 ) {
-  const { socket } = useSocket();
-
-  // useEffectEvent captures the latest handler without triggering re-subscriptions
-  const onEvent = useEffectEvent((payload: SocketPayloadMap[K]) => {
-    handler(payload);
-  });
+  const { subscribe } = useSocket();
 
   useEffect(() => {
-    if (!socket) return;
-
-    const onMessage = (event: MessageEvent) => {
-      try {
-        const message = JSON.parse(event.data);
-        if (message.type === eventType) {
-          onEvent(message.payload);
-        }
-      } catch(err) {
-        // Ignore unparseable or binary frames
-        console.error("Error parsing message:", err);
-      }
-    };
-
-    socket.addEventListener("message", onMessage);
-
-    return () => {
-      socket.removeEventListener("message", onMessage);
-    };
-  }, [socket, eventType]); // Clean, minimal dependencies
+    return subscribe(eventType, handler);
+  }, [subscribe, eventType, handler]);
 }
